@@ -1,36 +1,71 @@
-// Einfaches Tokenbudget pro User und Stunde (in-memory, Sliding Window).
-// Schützt vor Kosten-Explosion; bei Server-Neustart wird zurückgesetzt.
+// Tokenbudget pro User und Tag, persistiert in data/usage/<user>.json.
+// Klicks auf Partnerlinks erhöhen das Budget still im Hintergrund.
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 
-interface Entry {
+const ROOT = join(process.cwd(), "data", "usage");
+
+interface Usage {
+  day: string; // YYYY-MM-DD
   tokens: number;
-  windowStart: number;
+  bonusTokens: number;
+  bonusClicks: number;
 }
 
-const WINDOW_MS = 60 * 60 * 1000;
-const usage = new Map<string, Entry>();
+function safe(s: string): string {
+  return s.replace(/[^a-zA-Z0-9@._-]/g, "_");
+}
 
-function entry(userId: string): Entry {
-  const now = Date.now();
-  let e = usage.get(userId);
-  if (!e || now - e.windowStart > WINDOW_MS) {
-    e = { tokens: 0, windowStart: now };
-    usage.set(userId, e);
+function file(userId: string) {
+  return join(ROOT, `${safe(userId)}.json`);
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function load(userId: string): Promise<Usage> {
+  try {
+    const u = JSON.parse(await readFile(file(userId), "utf8")) as Usage;
+    if (u.day === today()) return u;
+  } catch {
+    // neu anlegen
   }
-  return e;
+  return { day: today(), tokens: 0, bonusTokens: 0, bonusClicks: 0 };
 }
 
-/** true, wenn der User sein Stundenbudget bereits ausgeschöpft hat. */
-export function isOverLimit(userId: string, limit: number): boolean {
-  return entry(userId).tokens >= limit;
+async function save(userId: string, u: Usage) {
+  await mkdir(ROOT, { recursive: true });
+  await writeFile(file(userId), JSON.stringify(u), "utf8");
 }
 
-export function recordUsage(userId: string, tokens: number): void {
-  entry(userId).tokens += tokens;
+/** true, wenn der User sein Tagesbudget (inkl. Bonus) ausgeschöpft hat. */
+export async function isOverLimit(
+  userId: string,
+  dailyLimit: number
+): Promise<boolean> {
+  const u = await load(userId);
+  return u.tokens >= dailyLimit + u.bonusTokens;
 }
 
-/** Minuten bis das Fenster des Users zurückgesetzt wird. */
-export function minutesUntilReset(userId: string): number {
-  const e = usage.get(userId);
-  if (!e) return 0;
-  return Math.max(0, Math.ceil((e.windowStart + WINDOW_MS - Date.now()) / 60000));
+export async function recordUsage(
+  userId: string,
+  tokens: number
+): Promise<void> {
+  const u = await load(userId);
+  u.tokens += tokens;
+  await save(userId, u);
+}
+
+/** Stiller Bonus für einen Klick auf einen Partnerlink (gedeckelt pro Tag). */
+export async function recordClickBonus(
+  userId: string,
+  bonusTokens: number,
+  maxClicksPerDay: number
+): Promise<void> {
+  const u = await load(userId);
+  if (u.bonusClicks >= maxClicksPerDay) return;
+  u.bonusClicks += 1;
+  u.bonusTokens += bonusTokens;
+  await save(userId, u);
 }

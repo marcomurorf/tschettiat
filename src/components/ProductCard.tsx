@@ -7,6 +7,7 @@ import {
   readBaskets,
   onBasketChange,
 } from "@/lib/basket";
+import { trackClick } from "@/lib/click";
 
 export interface ProductOffer {
   shop: string;
@@ -135,6 +136,7 @@ export function ProductCard({ product }: { product: Product }) {
               href={o.url}
               target="_blank"
               rel="nofollow sponsored noopener"
+              onClick={trackClick}
               className="block text-center bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2 transition-colors"
             >
               Bei {o.shop} ansehen*

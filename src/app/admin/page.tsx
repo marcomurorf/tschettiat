@@ -118,25 +118,68 @@ export default function AdminPage() {
       {/* Limits */}
       <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-4">
         <h2 className="font-semibold text-lg">Limits</h2>
-        <label className="flex flex-col gap-1 text-sm w-56">
-          Token pro User & Stunde
-          <input
-            type="number"
-            min={1000}
-            step={1000}
-            value={settings.limits?.tokensPerHour ?? 20000}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                limits: { tokensPerHour: Number(e.target.value) || 20000 },
-              })
-            }
-            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
-          />
-        </label>
+        <div className="flex gap-4 flex-wrap">
+          <label className="flex flex-col gap-1 text-sm w-52">
+            Token pro User & Tag
+            <input
+              type="number"
+              min={1000}
+              step={1000}
+              value={settings.limits?.tokensPerDay ?? 60000}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  limits: {
+                    ...settings.limits,
+                    tokensPerDay: Number(e.target.value) || 60000,
+                  },
+                })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm w-52">
+            Bonus-Token je Partnerlink-Klick
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={settings.limits?.clickBonusTokens ?? 5000}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  limits: {
+                    ...settings.limits,
+                    clickBonusTokens: Number(e.target.value) || 0,
+                  },
+                })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm w-52">
+            Max. belohnte Klicks pro Tag
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={settings.limits?.clickBonusMaxPerDay ?? 6}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  limits: {
+                    ...settings.limits,
+                    clickBonusMaxPerDay: Number(e.target.value) || 0,
+                  },
+                })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
+        </div>
         <p className="text-xs text-ink-soft">
-          Wird das Budget überschritten, bekommt der User eine Wartemeldung.
-          20.000 Token/h ≈ 15-25 Anfragen.
+          Klicks auf Partnerlinks erhöhen das Tagesbudget still im
+          Hintergrund. 60.000 Token/Tag ≈ 40-60 Anfragen.
         </p>
       </section>
 

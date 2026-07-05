@@ -11,6 +11,7 @@ import {
   onBasketChange,
   type Basket as BasketData,
 } from "@/lib/basket";
+import { trackClick } from "@/lib/click";
 
 export function Basket() {
   const [baskets, setBaskets] = useState<BasketData[]>([]);
@@ -105,6 +106,7 @@ export function Basket() {
                       href={item.url}
                       target="_blank"
                       rel="nofollow sponsored noopener"
+                      onClick={trackClick}
                       className="text-xs bg-accent hover:bg-accent-dark text-white rounded-md px-2 py-1 shrink-0 transition-colors"
                     >
                       Kaufen*

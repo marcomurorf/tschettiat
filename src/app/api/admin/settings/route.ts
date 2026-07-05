@@ -10,9 +10,15 @@ const settingsSchema = z.object({
   }),
   limits: z
     .object({
-      tokensPerHour: z.number().int().min(1000).max(10_000_000),
+      tokensPerDay: z.number().int().min(1000).max(10_000_000),
+      clickBonusTokens: z.number().int().min(0).max(1_000_000),
+      clickBonusMaxPerDay: z.number().int().min(0).max(1000),
     })
-    .default({ tokensPerHour: 20000 }),
+    .default({
+      tokensPerDay: 60000,
+      clickBonusTokens: 5000,
+      clickBonusMaxPerDay: 6,
+    }),
   shops: z.array(
     z.object({
       id: z.string().regex(/^[a-z0-9-]+$/),

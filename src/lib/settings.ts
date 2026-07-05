@@ -22,14 +22,20 @@ export interface Settings {
     model: string; // Azure: Deployment-Name, Google: Modell-ID
   };
   limits: {
-    tokensPerHour: number; // Tokenbudget pro User und Stunde
+    tokensPerDay: number; // Tokenbudget pro User und Tag
+    clickBonusTokens: number; // Extra-Token je Klick auf einen Partnerlink
+    clickBonusMaxPerDay: number; // max. belohnte Klicks pro Tag
   };
   shops: ShopConfig[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   llm: { provider: "azure", model: "gpt-4o" },
-  limits: { tokensPerHour: 20000 },
+  limits: {
+    tokensPerDay: 60000,
+    clickBonusTokens: 5000,
+    clickBonusMaxPerDay: 6,
+  },
   shops: [
     {
       id: "amazon",
