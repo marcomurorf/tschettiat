@@ -26,3 +26,54 @@
   background: #d8d2c6;
   border-radius: 3px;
 }
+
+/* Markdown in Assistenten-Antworten */
+.chat-markdown > * + * {
+  margin-top: 0.6em;
+}
+.chat-markdown p {
+  line-height: 1.55;
+}
+.chat-markdown strong {
+  font-weight: 600;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+.chat-markdown ul {
+  list-style: disc;
+}
+.chat-markdown ol {
+  list-style: decimal;
+}
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+.chat-markdown code {
+  background: var(--color-cream);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.chat-markdown table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid var(--color-cream-dark);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.chat-markdown blockquote {
+  border-left: 3px solid var(--color-cream-dark);
+  padding-left: 0.75em;
+  color: var(--color-ink-soft);
+}
