@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
       name: "Amazon",
       enabled: true,
       domain: "www.amazon.de",
-      tag: "",
+      tag: "smarteshome-21",
       searchUrl: "https://www.amazon.de/s?k={q}&tag={tag}",
       productUrl: "https://www.amazon.de/dp/{id}?tag={tag}",
       imageUrl: "https://images-eu.ssl-images-amazon.com/images/P/{id}.03._SL500_.jpg",
