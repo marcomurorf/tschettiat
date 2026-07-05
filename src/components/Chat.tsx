@@ -7,7 +7,7 @@ import { ProductCardRow, type Product } from "./ProductCard";
 
 const SUGGESTIONS = [
   "Ich suche einen leisen Staubsauger unter 200 €",
-  "Welche Kaffeemaschine passt zu einem 2-Personen-Haushalt?",
+  "Such mir alles für ein Campingwochenende mit 2-Mann-Zelt",
   "Geschenk für einen Hobbykoch, Budget 50 €",
   "Ich brauche ein Notebook für Uni und Netflix",
 ];

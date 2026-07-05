@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { UIMessage } from "ai";
 import { Chat } from "./Chat";
+import { Basket } from "./Basket";
 
 interface ChatMeta {
   id: string;
@@ -144,6 +145,8 @@ export function ChatShell() {
           />
         )}
       </div>
+
+      <Basket />
     </div>
   );
 }

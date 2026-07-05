@@ -19,8 +19,24 @@ Regeln:
 - Begründe für jedes Produkt kurz und ehrlich, warum genau du es empfiehlst (Feld "reason") – bezogen auf die Anfrage des Nutzers.
 - Fasse im Feld "reviewSummary" zusammen, was Nutzer an dem Produkt erfahrungsgemäß loben oder kritisieren. Nur wenn du das Produkt gut genug kennst, sonst weglassen. Keine erfundenen Bewertungszahlen.
 - Nenne im Fließtext keine Preise oder Links – das übernehmen die Produkt-Karten.
-- Empfiehl nur Produkte, die es wirklich gibt. Wenn du eine Amazon-ASIN sicher kennst, gib sie an, sonst lass sie weg.
+- Empfiehl nur Produkte, die es wirklich gibt. Gib eine Amazon-ASIN NUR an, wenn du dir zu 100 % sicher bist – erfinde niemals eine ASIN, ungültige werden verworfen. Im Zweifel weglassen.
+- Sucht der Nutzer eine komplette Ausrüstung oder ein Set (z. B. "alles für ein Campingwochenende"), stelle ein vollständiges Set aus bis zu 8 Produkten zusammen und gib jedem Produkt eine passende "category" (z. B. "Zelt", "Schlafen", "Kochen", "Licht").
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
+
+// Prüft eine Amazon-ASIN über den Bild-Endpunkt: ungültige ASINs liefern
+// ein winziges Platzhalter-GIF (< 1 KB), echte Produktbilder sind größer.
+async function asinExists(imageUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(imageUrl, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(3000),
+    });
+    const len = Number(res.headers.get("content-length") ?? 0);
+    return res.ok && len > 1000;
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -67,34 +83,54 @@ export async function POST(req: Request) {
                   .describe(
                     "Was Nutzer erfahrungsgemäß loben/kritisieren, 1-2 Sätze. Weglassen wenn unsicher."
                   ),
+                category: z
+                  .string()
+                  .optional()
+                  .describe(
+                    "Kategorie bei Set-Empfehlungen, z.B. 'Zelt' oder 'Kochen'"
+                  ),
                 asin: z
                   .string()
                   .optional()
-                  .describe("Amazon-ASIN, nur wenn sicher bekannt"),
+                  .describe(
+                    "Amazon-ASIN, NUR wenn 100% sicher bekannt, niemals raten"
+                  ),
                 searchQuery: z
                   .string()
                   .describe("Präziser Suchbegriff für Shop-Suche"),
               })
             )
             .min(1)
-            .max(4),
+            .max(8),
         }),
-        execute: async ({ products }) => ({
-          products: products.map((p) => ({
-            ...p,
-            offers: shops.map((shop) => ({
-              shop: shop.name,
-              url:
-                p.asin && shop.id === "amazon"
-                  ? productLink(shop, p.asin)
-                  : searchLink(shop, p.searchQuery),
-              image:
-                p.asin && shop.id === "amazon"
-                  ? productImage(shop, p.asin)
-                  : undefined,
+        execute: async ({ products }) => {
+          const amazon = shops.find((s) => s.id === "amazon");
+          // Erfundene ASINs aussortieren: Bild-Check gegen Amazon.
+          const checked = await Promise.all(
+            products.map(async (p) => {
+              if (!p.asin || !amazon?.imageUrl) return p;
+              const img = productImage(amazon, p.asin);
+              const ok = img ? await asinExists(img) : false;
+              return ok ? p : { ...p, asin: undefined };
+            })
+          );
+          return {
+            products: checked.map((p) => ({
+              ...p,
+              offers: shops.map((shop) => ({
+                shop: shop.name,
+                url:
+                  p.asin && shop.id === "amazon"
+                    ? productLink(shop, p.asin)
+                    : searchLink(shop, p.searchQuery),
+                image:
+                  p.asin && shop.id === "amazon"
+                    ? productImage(shop, p.asin)
+                    : undefined,
+              })),
             })),
-          })),
-        }),
+          };
+        },
       }),
     },
   });

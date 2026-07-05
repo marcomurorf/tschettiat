@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { addToBasket, isInBasket, onBasketChange } from "@/lib/basket";
+
 export interface ProductOffer {
   shop: string;
   url: string;
@@ -14,36 +17,60 @@ export interface Product {
   bestFor: string;
   reason?: string;
   reviewSummary?: string;
+  category?: string;
   offers: ProductOffer[];
 }
 
-// Bild ausblenden, wenn Amazon das 43-Byte-Platzhalter-GIF liefert (< 1 KB).
-function hideIfPlaceholder(e: React.SyntheticEvent<HTMLImageElement>) {
-  const img = e.currentTarget;
-  if (img.naturalWidth <= 1) img.closest("[data-img]")?.remove();
+// Kategorie-Emoji für den Platzhalter, wenn kein Produktbild verfügbar ist.
+function placeholderEmoji(category?: string): string {
+  const c = (category ?? "").toLowerCase();
+  if (/zelt|camping|outdoor/.test(c)) return "⛺";
+  if (/schlaf/.test(c)) return "🛌";
+  if (/koch|küche|grill/.test(c)) return "🍳";
+  if (/licht|lampe/.test(c)) return "🔦";
+  if (/technik|elektro/.test(c)) return "🔌";
+  return "📦";
 }
 
 export function ProductCard({ product }: { product: Product }) {
   const image = product.offers.find((o) => o.image)?.image;
+  const [imgFailed, setImgFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setSaved(isInBasket(product.name));
+    return onBasketChange(() => setSaved(isInBasket(product.name)));
+  }, [product.name]);
+
+  const showImage = image && !imgFailed;
 
   return (
     <div className="bg-card rounded-2xl border border-cream-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col w-64 shrink-0">
-      {image && (
-        <div
-          data-img
-          className="h-40 bg-white flex items-center justify-center p-4"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      <div className="h-40 bg-white flex items-center justify-center p-4 relative">
+        {product.category && (
+          <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wide bg-accent-soft text-accent-dark font-semibold rounded-full px-2 py-0.5">
+            {product.category}
+          </span>
+        )}
+        {showImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={image}
             alt={product.name}
             className="max-h-full max-w-full object-contain"
             loading="lazy"
-            onLoad={hideIfPlaceholder}
-            onError={(e) => e.currentTarget.closest("[data-img]")?.remove()}
+            onLoad={(e) => {
+              // Amazon liefert für ungültige ASINs ein 1x1-Platzhalter-GIF.
+              if (e.currentTarget.naturalWidth <= 1) setImgFailed(true);
+            }}
+            onError={() => setImgFailed(true)}
           />
-        </div>
-      )}
+        ) : (
+          <span className="text-5xl opacity-60" aria-hidden>
+            {placeholderEmoji(product.category)}
+          </span>
+        )}
+      </div>
       <div className="p-4 flex flex-col gap-2 flex-1">
         {product.brand && (
           <div className="text-xs uppercase tracking-wide text-ink-soft">
@@ -89,6 +116,22 @@ export function ProductCard({ product }: { product: Product }) {
               Bei {o.shop} ansehen*
             </a>
           ))}
+          <button
+            onClick={() =>
+              addToBasket({
+                name: product.name,
+                brand: product.brand,
+                priceHint: product.priceHint,
+                category: product.category,
+                url: product.offers[0]?.url ?? "#",
+                image: showImage ? image : undefined,
+              })
+            }
+            disabled={saved}
+            className="block text-center border border-cream-dark hover:border-accent hover:text-accent disabled:opacity-60 disabled:hover:border-cream-dark disabled:hover:text-inherit text-sm font-medium rounded-lg py-1.5 transition-colors"
+          >
+            {saved ? "✓ Im Sammelkorb" : "🧺 In den Sammelkorb"}
+          </button>
         </div>
       </div>
     </div>
