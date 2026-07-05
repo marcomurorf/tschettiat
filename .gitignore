@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Laufzeitdaten (Settings, Auth-Store)
+/data/
