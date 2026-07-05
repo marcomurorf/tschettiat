@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { loadSettings } from "@/lib/settings";
 import { getModel } from "@/lib/llm";
 import { searchLink, productLink, productImage } from "@/lib/shops";
+import { saveChat, titleFromMessages, isValidChatId } from "@/lib/chats";
 
 export const maxDuration = 60;
 
@@ -15,6 +16,8 @@ Du hilfst Nutzern, das richtige Produkt, die richtige Reise oder die passende L�
 Regeln:
 - Stelle bei vagen Anfragen 1-2 gezielte Rückfragen (Budget, Einsatzzweck), bevor du empfiehlst.
 - Wenn du konkrete Produkte empfiehlst, rufe IMMER das Tool "showProducts" mit 2-4 Produkten auf.
+- Begründe für jedes Produkt kurz und ehrlich, warum genau du es empfiehlst (Feld "reason") – bezogen auf die Anfrage des Nutzers.
+- Fasse im Feld "reviewSummary" zusammen, was Nutzer an dem Produkt erfahrungsgemäß loben oder kritisieren. Nur wenn du das Produkt gut genug kennst, sonst weglassen. Keine erfundenen Bewertungszahlen.
 - Nenne im Fließtext keine Preise oder Links – das übernehmen die Produkt-Karten.
 - Empfiehl nur Produkte, die es wirklich gibt. Wenn du eine Amazon-ASIN sicher kennst, gib sie an, sonst lass sie weg.
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
@@ -26,8 +29,10 @@ export async function POST(req: Request) {
   if (!session?.user && !devBypass) {
     return new Response("Bitte zuerst anmelden.", { status: 401 });
   }
+  const userId = session?.user?.email ?? "dev";
 
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const { messages, id: chatId }: { messages: UIMessage[]; id?: string } =
+    await req.json();
   const settings = await loadSettings();
   const shops = settings.shops.filter((s) => s.enabled);
 
@@ -51,6 +56,17 @@ export async function POST(req: Request) {
                   .describe("Grobe Preisspanne, z.B. 'ca. 80-120 €'"),
                 pros: z.array(z.string()).max(3).describe("2-3 Stärken"),
                 bestFor: z.string().describe("Für wen/was ideal"),
+                reason: z
+                  .string()
+                  .describe(
+                    "1-2 Sätze: Warum empfiehlst du genau dieses Produkt für diese Anfrage?"
+                  ),
+                reviewSummary: z
+                  .string()
+                  .optional()
+                  .describe(
+                    "Was Nutzer erfahrungsgemäß loben/kritisieren, 1-2 Sätze. Weglassen wenn unsicher."
+                  ),
                 asin: z
                   .string()
                   .optional()
@@ -83,5 +99,16 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    onFinish: async ({ messages: allMessages }) => {
+      if (!isValidChatId(chatId)) return;
+      await saveChat(userId, {
+        id: chatId!,
+        title: titleFromMessages(allMessages),
+        updatedAt: Date.now(),
+        messages: allMessages,
+      });
+    },
+  });
 }

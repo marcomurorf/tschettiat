@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useEffect, useRef, useState } from "react";
+import type { UIMessage } from "ai";
 import { ProductCardRow, type Product } from "./ProductCard";
 
 const SUGGESTIONS = [
@@ -11,8 +12,20 @@ const SUGGESTIONS = [
   "Ich brauche ein Notebook für Uni und Netflix",
 ];
 
-export function Chat() {
-  const { messages, sendMessage, status, error } = useChat();
+export function Chat({
+  chatId,
+  initialMessages,
+  onChatUpdated,
+}: {
+  chatId: string;
+  initialMessages?: UIMessage[];
+  onChatUpdated?: () => void;
+}) {
+  const { messages, sendMessage, status, error } = useChat({
+    id: chatId,
+    messages: initialMessages,
+    onFinish: () => onChatUpdated?.(),
+  });
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const busy = status === "submitted" || status === "streaming";

@@ -1,5 +1,5 @@
 import { auth, signOut } from "@/auth";
-import { Chat } from "@/components/Chat";
+import { ChatShell } from "@/components/ChatShell";
 import Link from "next/link";
 
 export default async function Home() {
@@ -39,7 +39,7 @@ export default async function Home() {
       </header>
 
       {loggedIn ? (
-        <Chat />
+        <ChatShell />
       ) : (
         <main className="flex flex-col flex-1 items-center justify-center text-center px-4">
           <div className="text-6xl mb-6">🛒</div>

@@ -12,6 +12,8 @@ export interface Product {
   priceHint?: string;
   pros: string[];
   bestFor: string;
+  reason?: string;
+  reviewSummary?: string;
   offers: ProductOffer[];
 }
 
@@ -63,6 +65,18 @@ export function ProductCard({ product }: { product: Product }) {
           ))}
         </ul>
         <p className="text-xs text-ink-soft italic">{product.bestFor}</p>
+        {product.reason && (
+          <div className="text-xs bg-accent-soft/60 border border-accent/15 rounded-lg px-2.5 py-2 leading-relaxed">
+            <span className="font-semibold">Warum Tschetti das empfiehlt:</span>{" "}
+            {product.reason}
+          </div>
+        )}
+        {product.reviewSummary && (
+          <div className="text-xs text-ink-soft leading-relaxed">
+            <span className="font-semibold">💬 Nutzer-Stimmen:</span>{" "}
+            {product.reviewSummary}
+          </div>
+        )}
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
           {product.offers.map((o) => (
             <a
