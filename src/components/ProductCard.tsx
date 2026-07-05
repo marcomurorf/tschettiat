@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addToBasket, isInBasket, onBasketChange } from "@/lib/basket";
+import {
+  addToBasket,
+  isInBasket,
+  readBaskets,
+  onBasketChange,
+} from "@/lib/basket";
 
 export interface ProductOffer {
   shop: string;
@@ -36,11 +41,30 @@ export function ProductCard({ product }: { product: Product }) {
   const image = product.offers.find((o) => o.image)?.image;
   const [imgFailed, setImgFailed] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [basketNames, setBasketNames] = useState<string[]>([]);
 
   useEffect(() => {
-    setSaved(isInBasket(product.name));
-    return onBasketChange(() => setSaved(isInBasket(product.name)));
+    const sync = () => {
+      setSaved(isInBasket(product.name));
+      setBasketNames(readBaskets().map((b) => b.name));
+    };
+    sync();
+    return onBasketChange(sync);
   }, [product.name]);
+
+  const add = (basketName: string) => {
+    setPicking(false);
+    void addToBasket(basketName, {
+      name: product.name,
+      brand: product.brand,
+      priceHint: product.priceHint,
+      category: product.category,
+      url: product.offers[0]?.url ?? "#",
+      image: showImage ? image : undefined,
+    });
+  };
 
   const showImage = image && !imgFailed;
 
@@ -116,22 +140,60 @@ export function ProductCard({ product }: { product: Product }) {
               Bei {o.shop} ansehen*
             </a>
           ))}
-          <button
-            onClick={() =>
-              addToBasket({
-                name: product.name,
-                brand: product.brand,
-                priceHint: product.priceHint,
-                category: product.category,
-                url: product.offers[0]?.url ?? "#",
-                image: showImage ? image : undefined,
-              })
-            }
-            disabled={saved}
-            className="block text-center border border-cream-dark hover:border-accent hover:text-accent disabled:opacity-60 disabled:hover:border-cream-dark disabled:hover:text-inherit text-sm font-medium rounded-lg py-1.5 transition-colors"
-          >
-            {saved ? "✓ Im Sammelkorb" : "🧺 In den Sammelkorb"}
-          </button>
+          {!picking ? (
+            <button
+              onClick={() => {
+                if (saved) return;
+                if (basketNames.length === 0) add("Mein Korb");
+                else setPicking(true);
+              }}
+              disabled={saved}
+              className="block text-center border border-cream-dark hover:border-accent hover:text-accent disabled:opacity-60 disabled:hover:border-cream-dark disabled:hover:text-inherit text-sm font-medium rounded-lg py-1.5 transition-colors"
+            >
+              {saved ? "✓ Im Sammelkorb" : "🧺 In den Sammelkorb"}
+            </button>
+          ) : (
+            <div className="border border-cream-dark rounded-lg p-2 space-y-1.5">
+              <div className="text-xs font-semibold text-ink-soft">
+                In welchen Korb?
+              </div>
+              {basketNames.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => add(n)}
+                  className="block w-full text-left text-xs bg-cream hover:bg-accent-soft rounded-md px-2 py-1.5 transition-colors"
+                >
+                  🧺 {n}
+                </button>
+              ))}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newName.trim()) add(newName.trim());
+                }}
+                className="flex gap-1"
+              >
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Neuer Korb …"
+                  className="flex-1 min-w-0 text-xs border border-cream-dark rounded-md px-2 py-1.5 bg-white"
+                />
+                <button
+                  type="submit"
+                  className="text-xs bg-accent hover:bg-accent-dark text-white rounded-md px-2 transition-colors"
+                >
+                  +
+                </button>
+              </form>
+              <button
+                onClick={() => setPicking(false)}
+                className="block w-full text-center text-[11px] text-ink-soft hover:text-ink"
+              >
+                Abbrechen
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,12 +1,30 @@
 // Chat-Endpunkt: streamt LLM-Antworten; Produkt-Empfehlungen kommen als
 // Tool-Call "showProducts" und werden im Frontend als Karten gerendert.
-import { streamText, tool, convertToModelMessages, type UIMessage } from "ai";
+import {
+  streamText,
+  generateText,
+  tool,
+  convertToModelMessages,
+  stepCountIs,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { loadSettings } from "@/lib/settings";
 import { getModel } from "@/lib/llm";
 import { searchLink, productLink, productImage } from "@/lib/shops";
-import { saveChat, titleFromMessages, isValidChatId } from "@/lib/chats";
+import {
+  saveChat,
+  loadChat,
+  titleFromMessages,
+  isValidChatId,
+} from "@/lib/chats";
+import { loadBaskets } from "@/lib/baskets";
+import {
+  isOverLimit,
+  recordUsage,
+  minutesUntilReset,
+} from "@/lib/tokenlimit";
 
 export const maxDuration = 60;
 
@@ -21,6 +39,7 @@ Regeln:
 - Nenne im Fließtext keine Preise oder Links – das übernehmen die Produkt-Karten.
 - Empfiehl nur Produkte, die es wirklich gibt. Gib eine Amazon-ASIN NUR an, wenn du dir zu 100 % sicher bist – erfinde niemals eine ASIN, ungültige werden verworfen. Im Zweifel weglassen.
 - Sucht der Nutzer eine komplette Ausrüstung oder ein Set (z. B. "alles für ein Campingwochenende"), stelle ein vollständiges Set aus bis zu 8 Produkten zusammen und gib jedem Produkt eine passende "category" (z. B. "Zelt", "Schlafen", "Kochen", "Licht").
+- Der Nutzer hat Sammelkörbe mit gemerkten Produkten. Bezieht er sich darauf (z. B. "Passt der Schlafsack zu meiner Decke?", "Was fehlt mir noch?"), rufe zuerst das Tool "getBaskets" auf und beziehe dich auf die konkreten Produkte darin.
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
 
 // Prüft eine Amazon-ASIN über den Bild-Endpunkt: ungültige ASINs liefern
@@ -52,11 +71,30 @@ export async function POST(req: Request) {
   const settings = await loadSettings();
   const shops = settings.shops.filter((s) => s.enabled);
 
+  // Tokenbudget pro Stunde prüfen, bevor das LLM angeworfen wird.
+  const tokenLimit = settings.limits?.tokensPerHour ?? 20000;
+  if (isOverLimit(userId, tokenLimit)) {
+    return new Response(
+      `Stundenlimit erreicht – bitte versuch es in ${minutesUntilReset(userId)} Minuten nochmal.`,
+      { status: 429 }
+    );
+  }
+
   const result = streamText({
     model: getModel(settings),
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
+    stopWhen: stepCountIs(5),
+    onFinish: ({ totalUsage }) => {
+      recordUsage(userId, totalUsage?.totalTokens ?? 0);
+    },
     tools: {
+      getBaskets: tool({
+        description:
+          "Liest alle Sammelkörbe des Nutzers mit den gemerkten Produkten.",
+        inputSchema: z.object({}),
+        execute: async () => ({ baskets: await loadBaskets(userId) }),
+      }),
       showProducts: tool({
         description:
           "Zeigt dem Nutzer Produkt-Karten an. Für jede konkrete Produktempfehlung aufrufen.",
@@ -139,9 +177,23 @@ export async function POST(req: Request) {
     originalMessages: messages,
     onFinish: async ({ messages: allMessages }) => {
       if (!isValidChatId(chatId)) return;
+      // Beim ersten Speichern eine knappe Headline vom LLM erzeugen lassen.
+      const existing = await loadChat(userId, chatId!);
+      let title = existing?.title;
+      if (!title) {
+        try {
+          const { text } = await generateText({
+            model: getModel(settings),
+            prompt: `Fasse dieses Einkaufs-Anliegen als knappe Überschrift zusammen (max. 5 Wörter, Deutsch, keine Anführungszeichen): "${titleFromMessages(allMessages)}"`,
+          });
+          title = text.trim().replace(/^["']|["']$/g, "").slice(0, 60);
+        } catch {
+          // Fallback unten
+        }
+      }
       await saveChat(userId, {
         id: chatId!,
-        title: titleFromMessages(allMessages),
+        title: title || titleFromMessages(allMessages),
         updatedAt: Date.now(),
         messages: allMessages,
       });

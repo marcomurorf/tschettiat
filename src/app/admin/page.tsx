@@ -115,6 +115,31 @@ export default function AdminPage() {
         </p>
       </section>
 
+      {/* Limits */}
+      <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-4">
+        <h2 className="font-semibold text-lg">Limits</h2>
+        <label className="flex flex-col gap-1 text-sm w-56">
+          Token pro User & Stunde
+          <input
+            type="number"
+            min={1000}
+            step={1000}
+            value={settings.limits?.tokensPerHour ?? 20000}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                limits: { tokensPerHour: Number(e.target.value) || 20000 },
+              })
+            }
+            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+          />
+        </label>
+        <p className="text-xs text-ink-soft">
+          Wird das Budget überschritten, bekommt der User eine Wartemeldung.
+          20.000 Token/h ≈ 15-25 Anfragen.
+        </p>
+      </section>
+
       {/* Shops */}
       <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-5">
         <div className="flex items-center justify-between">

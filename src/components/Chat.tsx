@@ -117,7 +117,9 @@ export function Chat({
 
         {error && (
           <div className="text-sm text-accent bg-accent-soft rounded-lg px-4 py-2">
-            Da ist etwas schiefgelaufen – bitte versuch es nochmal.
+            {error.message?.includes("Stundenlimit")
+              ? error.message
+              : "Da ist etwas schiefgelaufen – bitte versuch es nochmal."}
           </div>
         )}
         <div ref={bottomRef} />

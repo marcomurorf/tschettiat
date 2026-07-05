@@ -8,6 +8,11 @@ const settingsSchema = z.object({
     provider: z.enum(["azure", "google"]),
     model: z.string().min(1).max(100),
   }),
+  limits: z
+    .object({
+      tokensPerHour: z.number().int().min(1000).max(10_000_000),
+    })
+    .default({ tokensPerHour: 20000 }),
   shops: z.array(
     z.object({
       id: z.string().regex(/^[a-z0-9-]+$/),

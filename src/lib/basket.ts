@@ -1,9 +1,9 @@
-// Sammelkorb: rein clientseitig in localStorage, synchronisiert über ein
-// CustomEvent, damit Karten und Korb-Panel ohne Context auskommen.
+// Client für die serverseitigen Sammelkörbe (/api/baskets).
+// Hält einen Modul-Cache und synchronisiert Komponenten per CustomEvent.
 "use client";
 
 export interface BasketItem {
-  key: string; // eindeutig: Name normalisiert
+  key: string;
   name: string;
   brand?: string;
   priceHint?: string;
@@ -12,47 +12,83 @@ export interface BasketItem {
   image?: string;
 }
 
-const STORAGE_KEY = "tschetti-basket";
-const EVENT = "tschetti-basket-changed";
-
-export function readBasket(): BasketItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
+export interface Basket {
+  name: string;
+  items: BasketItem[];
 }
 
-function write(items: BasketItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+const EVENT = "tschetti-basket-changed";
+let cache: Basket[] = [];
+let loaded = false;
+
+function notify() {
   window.dispatchEvent(new CustomEvent(EVENT));
+}
+
+function setCache(baskets: Basket[]) {
+  cache = baskets;
+  loaded = true;
+  notify();
+}
+
+export function readBaskets(): Basket[] {
+  return cache;
+}
+
+export async function refreshBaskets(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const r = await fetch("/api/baskets");
+    if (r.ok) setCache(await r.json());
+  } catch {
+    // Offline o.ä. – Cache behalten
+  }
 }
 
 export function itemKey(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-").slice(0, 80);
 }
 
-export function addToBasket(item: Omit<BasketItem, "key">) {
-  const key = itemKey(item.name);
-  const items = readBasket();
-  if (items.some((i) => i.key === key)) return;
-  write([...items, { ...item, key }]);
+export async function addToBasket(
+  basketName: string,
+  item: Omit<BasketItem, "key">
+): Promise<void> {
+  const r = await fetch("/api/baskets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ basket: basketName, item }),
+  });
+  if (r.ok) setCache(await r.json());
 }
 
-export function removeFromBasket(key: string) {
-  write(readBasket().filter((i) => i.key !== key));
+export async function removeFromBasket(
+  basketName: string,
+  key: string
+): Promise<void> {
+  const r = await fetch("/api/baskets", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ basket: basketName, key }),
+  });
+  if (r.ok) setCache(await r.json());
 }
 
-export function clearBasket() {
-  write([]);
+export async function removeBasket(basketName: string): Promise<void> {
+  const r = await fetch("/api/baskets", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ basket: basketName }),
+  });
+  if (r.ok) setCache(await r.json());
 }
 
 export function isInBasket(name: string): boolean {
-  return readBasket().some((i) => i.key === itemKey(name));
+  const key = itemKey(name);
+  return cache.some((b) => b.items.some((i) => i.key === key));
 }
 
 export function onBasketChange(cb: () => void): () => void {
   window.addEventListener(EVENT, cb);
+  if (!loaded) void refreshBaskets();
   return () => window.removeEventListener(EVENT, cb);
 }

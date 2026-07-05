@@ -21,11 +21,15 @@ export interface Settings {
     provider: "azure" | "google";
     model: string; // Azure: Deployment-Name, Google: Modell-ID
   };
+  limits: {
+    tokensPerHour: number; // Tokenbudget pro User und Stunde
+  };
   shops: ShopConfig[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   llm: { provider: "azure", model: "gpt-4o" },
+  limits: { tokensPerHour: 20000 },
   shops: [
     {
       id: "amazon",
