@@ -41,6 +41,43 @@ function Markdown({ text }: { text: string }) {
   );
 }
 
+/** Platzhalter-Karten, während die Produktsuche im Hintergrund läuft. */
+function ProductSearchSkeleton() {
+  return (
+    <div>
+      <div className="flex items-center gap-2 text-sm text-ink-soft mb-2 px-1">
+        <svg
+          className="animate-spin"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        >
+          <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+        </svg>
+        Suche passende Produkte&nbsp;…
+      </div>
+      <div className="flex gap-3 overflow-x-hidden">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="animate-pulse bg-card border border-cream-dark rounded-2xl p-4 w-52 shrink-0 space-y-3"
+            style={{ animationDelay: `${i * 150}ms` }}
+          >
+            <div className="bg-cream-dark/60 rounded-lg h-28 w-full" />
+            <div className="bg-cream-dark/60 rounded h-3.5 w-4/5" />
+            <div className="bg-cream-dark/60 rounded h-3 w-3/5" />
+            <div className="bg-cream-dark/60 rounded h-3 w-2/5" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -182,12 +219,14 @@ export function Chat({
                       </div>
                     );
                   }
-                  if (
-                    part.type === "tool-showProducts" &&
-                    part.state === "output-available"
-                  ) {
-                    const out = part.output as { products: Product[] };
-                    return <ProductCardRow key={i} products={out.products} />;
+                  if (part.type === "tool-showProducts") {
+                    if (part.state === "output-available") {
+                      const out = part.output as { products: Product[] };
+                      return <ProductCardRow key={i} products={out.products} />;
+                    }
+                    if (part.state === "output-error") return null;
+                    // Suche läuft noch: Skeleton-Karten anzeigen
+                    return <ProductSearchSkeleton key={i} />;
                   }
                   return null;
                 })}
