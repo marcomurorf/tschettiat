@@ -1,42 +1,24 @@
-// Tokenbudget pro User und Tag, persistiert in data/usage/<user>.json.
+// Tokenbudget pro User und Tag in SQLite (Tabelle usage).
 // Klicks auf Partnerlinks erhöhen das Budget still im Hintergrund.
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
-
-const ROOT = join(process.cwd(), "data", "usage");
-
-interface Usage {
-  day: string; // YYYY-MM-DD
-  tokens: number;
-  bonusTokens: number;
-  bonusClicks: number;
-}
-
-function safe(s: string): string {
-  return s.replace(/[^a-zA-Z0-9@._-]/g, "_");
-}
-
-function file(userId: string) {
-  return join(ROOT, `${safe(userId)}.json`);
-}
+import { db, logEvent } from "./db";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function load(userId: string): Promise<Usage> {
-  try {
-    const u = JSON.parse(await readFile(file(userId), "utf8")) as Usage;
-    if (u.day === today()) return u;
-  } catch {
-    // neu anlegen
-  }
-  return { day: today(), tokens: 0, bonusTokens: 0, bonusClicks: 0 };
+interface UsageRow {
+  tokens: number;
+  bonus_tokens: number;
+  bonus_clicks: number;
 }
 
-async function save(userId: string, u: Usage) {
-  await mkdir(ROOT, { recursive: true });
-  await writeFile(file(userId), JSON.stringify(u), "utf8");
+function get(userId: string): UsageRow {
+  const row = db
+    .prepare(
+      "SELECT tokens, bonus_tokens, bonus_clicks FROM usage WHERE user_id = ? AND day = ?"
+    )
+    .get(userId, today()) as UsageRow | undefined;
+  return row ?? { tokens: 0, bonus_tokens: 0, bonus_clicks: 0 };
 }
 
 /** true, wenn der User sein Tagesbudget (inkl. Bonus) ausgeschöpft hat. */
@@ -44,17 +26,19 @@ export async function isOverLimit(
   userId: string,
   dailyLimit: number
 ): Promise<boolean> {
-  const u = await load(userId);
-  return u.tokens >= dailyLimit + u.bonusTokens;
+  const u = get(userId);
+  return u.tokens >= dailyLimit + u.bonus_tokens;
 }
 
 export async function recordUsage(
   userId: string,
   tokens: number
 ): Promise<void> {
-  const u = await load(userId);
-  u.tokens += tokens;
-  await save(userId, u);
+  db.prepare(
+    `INSERT INTO usage (user_id, day, tokens) VALUES (?, ?, ?)
+     ON CONFLICT (user_id, day) DO UPDATE SET tokens = tokens + excluded.tokens`
+  ).run(userId, today(), tokens);
+  logEvent(userId, "chat_usage", { tokens });
 }
 
 /** Stiller Bonus für einen Klick auf einen Partnerlink (gedeckelt pro Tag). */
@@ -63,9 +47,17 @@ export async function recordClickBonus(
   bonusTokens: number,
   maxClicksPerDay: number
 ): Promise<void> {
-  const u = await load(userId);
-  if (u.bonusClicks >= maxClicksPerDay) return;
-  u.bonusClicks += 1;
-  u.bonusTokens += bonusTokens;
-  await save(userId, u);
+  logEvent(userId, "affiliate_click");
+  if (maxClicksPerDay <= 0 || bonusTokens <= 0) return;
+  const changed = db
+    .prepare(
+      `INSERT INTO usage (user_id, day, bonus_tokens, bonus_clicks)
+       VALUES (?, ?, ?, 1)
+       ON CONFLICT (user_id, day) DO UPDATE SET
+         bonus_tokens = bonus_tokens + excluded.bonus_tokens,
+         bonus_clicks = bonus_clicks + 1
+       WHERE bonus_clicks < ?`
+    )
+    .run(userId, today(), bonusTokens, maxClicksPerDay);
+  void changed;
 }

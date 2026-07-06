@@ -1,9 +1,6 @@
-// Chatverlauf-Speicher: eine JSON-Datei pro Chat unter data/chats/<user>/<id>.json.
-import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+// Chatverläufe in SQLite (Tabelle chats).
 import type { UIMessage } from "ai";
-
-const ROOT = join(process.cwd(), "data", "chats");
+import { db } from "./db";
 
 export interface ChatMeta {
   id: string;
@@ -15,38 +12,17 @@ export interface StoredChat extends ChatMeta {
   messages: UIMessage[];
 }
 
-// Nur harmlose Zeichen im Dateinamen zulassen (kein Path-Traversal).
-function safe(s: string): string {
-  return s.replace(/[^a-zA-Z0-9@._-]/g, "_");
-}
-
 export function isValidChatId(id: unknown): id is string {
   return typeof id === "string" && /^[a-zA-Z0-9_-]{8,64}$/.test(id);
 }
 
-function userDir(userId: string) {
-  return join(ROOT, safe(userId));
-}
-
 export async function listChats(userId: string): Promise<ChatMeta[]> {
-  let files: string[];
-  try {
-    files = await readdir(userDir(userId));
-  } catch {
-    return [];
-  }
-  const chats: ChatMeta[] = [];
-  for (const f of files) {
-    if (!f.endsWith(".json")) continue;
-    try {
-      const raw = await readFile(join(userDir(userId), f), "utf8");
-      const { id, title, updatedAt } = JSON.parse(raw) as StoredChat;
-      chats.push({ id, title, updatedAt });
-    } catch {
-      // defekte Datei überspringen
-    }
-  }
-  return chats.sort((a, b) => b.updatedAt - a.updatedAt);
+  const rows = db
+    .prepare(
+      "SELECT id, title, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC"
+    )
+    .all(userId) as { id: string; title: string; updated_at: number }[];
+  return rows.map((r) => ({ id: r.id, title: r.title, updatedAt: r.updated_at }));
 }
 
 export async function loadChat(
@@ -54,9 +30,21 @@ export async function loadChat(
   chatId: string
 ): Promise<StoredChat | null> {
   if (!isValidChatId(chatId)) return null;
+  const row = db
+    .prepare(
+      "SELECT id, title, updated_at, messages FROM chats WHERE user_id = ? AND id = ?"
+    )
+    .get(userId, chatId) as
+    | { id: string; title: string; updated_at: number; messages: string }
+    | undefined;
+  if (!row) return null;
   try {
-    const raw = await readFile(join(userDir(userId), `${chatId}.json`), "utf8");
-    return JSON.parse(raw) as StoredChat;
+    return {
+      id: row.id,
+      title: row.title,
+      updatedAt: row.updated_at,
+      messages: JSON.parse(row.messages) as UIMessage[],
+    };
   } catch {
     return null;
   }
@@ -67,12 +55,14 @@ export async function saveChat(
   chat: StoredChat
 ): Promise<void> {
   if (!isValidChatId(chat.id)) return;
-  await mkdir(userDir(userId), { recursive: true });
-  await writeFile(
-    join(userDir(userId), `${chat.id}.json`),
-    JSON.stringify(chat),
-    "utf8"
-  );
+  db.prepare(
+    `INSERT INTO chats (user_id, id, title, updated_at, messages)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, id) DO UPDATE SET
+       title = excluded.title,
+       updated_at = excluded.updated_at,
+       messages = excluded.messages`
+  ).run(userId, chat.id, chat.title, chat.updatedAt, JSON.stringify(chat.messages));
 }
 
 export async function deleteChat(
@@ -80,7 +70,10 @@ export async function deleteChat(
   chatId: string
 ): Promise<void> {
   if (!isValidChatId(chatId)) return;
-  await rm(join(userDir(userId), `${chatId}.json`), { force: true });
+  db.prepare("DELETE FROM chats WHERE user_id = ? AND id = ?").run(
+    userId,
+    chatId
+  );
 }
 
 // Titel aus der ersten User-Nachricht ableiten.
