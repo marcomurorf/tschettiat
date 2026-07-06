@@ -25,6 +25,10 @@ const EMPTY_SHOP: ShopConfig = {
   searchUrl: "",
   productUrl: "",
   imageUrl: "",
+  country: "",
+  network: "direct",
+  awinMid: "",
+  description: "",
 };
 
 export default function AdminPage() {
@@ -326,6 +330,21 @@ export default function AdminPage() {
           </button>
         </div>
 
+        <label className="flex flex-col gap-1 text-sm w-64">
+          AWIN Publisher-ID (awinaffid)
+          <input
+            placeholder="z.B. 123456"
+            value={settings.awinPublisherId ?? ""}
+            onChange={(e) =>
+              setSettings({ ...settings, awinPublisherId: e.target.value })
+            }
+            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+          />
+          <span className="text-xs text-ink-soft">
+            Wird für Deeplinks aller Shops mit Netzwerk „AWIN“ verwendet.
+          </span>
+        </label>
+
         {settings.shops.map((shop, i) => (
           <div
             key={i}
@@ -358,6 +377,40 @@ export default function AdminPage() {
                 onChange={(e) => updateShop(i, { tag: e.target.value })}
                 className="border border-cream-dark rounded-lg px-3 py-1.5 text-sm w-44"
               />
+              <input
+                placeholder="Land (AT/DE)"
+                value={shop.country ?? ""}
+                maxLength={2}
+                onChange={(e) =>
+                  updateShop(i, { country: e.target.value.toUpperCase() })
+                }
+                className="border border-cream-dark rounded-lg px-3 py-1.5 text-sm w-24 uppercase"
+              />
+              {shop.country === "AT" && (
+                <span className="text-xs bg-accent-soft text-accent-dark font-semibold rounded-full px-2 py-0.5">
+                  🇦🇹 AT
+                </span>
+              )}
+              <select
+                value={shop.network ?? "direct"}
+                onChange={(e) =>
+                  updateShop(i, {
+                    network: e.target.value as ShopConfig["network"],
+                  })
+                }
+                className="border border-cream-dark rounded-lg px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="direct">Direkt</option>
+                <option value="awin">AWIN</option>
+              </select>
+              {shop.network === "awin" && (
+                <input
+                  placeholder="AWIN Advertiser-ID"
+                  value={shop.awinMid ?? ""}
+                  onChange={(e) => updateShop(i, { awinMid: e.target.value })}
+                  className="border border-cream-dark rounded-lg px-3 py-1.5 text-sm w-40"
+                />
+              )}
               <button
                 onClick={() =>
                   setSettings({
@@ -375,6 +428,7 @@ export default function AdminPage() {
                 ["searchUrl", "Such-URL ({q}, {tag})"],
                 ["productUrl", "Produkt-URL ({id}, {tag})"],
                 ["imageUrl", "Bild-URL ({id}) – optional"],
+                ["description", "Sortiment-Beschreibung fürs LLM – optional"],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex flex-col gap-1 text-xs text-ink-soft">

@@ -104,6 +104,17 @@ export function Chat({
   const [input, setInput] = useState("");
   const [images, setImages] = useState<{ dataUrl: string; type: string }[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
+  // Nutzer-Präferenz: nur österreichische Shops anzeigen (lokal gespeichert).
+  const [atOnly, setAtOnly] = useState(false);
+  useEffect(() => {
+    setAtOnly(localStorage.getItem("tschetti.atOnly") === "1");
+  }, []);
+  const toggleAtOnly = () => {
+    setAtOnly((v) => {
+      localStorage.setItem("tschetti.atOnly", v ? "0" : "1");
+      return !v;
+    });
+  };
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busy = status === "submitted" || status === "streaming";
@@ -135,10 +146,13 @@ export function Chat({
       mediaType: img.type,
       url: img.dataUrl,
     }));
-    sendMessage({
-      text: t || "Was ist das für ein Produkt? Finde es oder etwas Ähnliches.",
-      files,
-    });
+    sendMessage(
+      {
+        text: t || "Was ist das für ein Produkt? Finde es oder etwas Ähnliches.",
+        files,
+      },
+      { body: { atOnly } }
+    );
     setInput("");
     setImages([]);
     setImageError(null);
@@ -261,6 +275,21 @@ export function Chat({
         }}
         className="sticky bottom-0 pb-5 pt-2 bg-cream"
       >
+        <div className="flex justify-end mb-1.5 px-1">
+          <button
+            type="button"
+            onClick={toggleAtOnly}
+            aria-pressed={atOnly}
+            title="Nur Angebote österreichischer Anbieter anzeigen"
+            className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+              atOnly
+                ? "bg-accent text-white border-accent"
+                : "bg-card text-ink-soft border-cream-dark hover:border-accent hover:text-accent"
+            }`}
+          >
+            🇦🇹 Nur österreichische Shops{atOnly ? " ✓" : ""}
+          </button>
+        </div>
         {imageError && (
           <p className="text-xs text-accent mb-1 px-1">{imageError}</p>
         )}

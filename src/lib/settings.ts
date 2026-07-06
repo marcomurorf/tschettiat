@@ -14,6 +14,10 @@ export interface ShopConfig {
   searchUrl: string;   // Template, {q} = Suchbegriff, {tag} = Tag
   productUrl: string;  // Template, {id} = Produkt-ID (ASIN o.ä.), {tag} = Tag
   imageUrl?: string;   // Template, {id} = Produkt-ID → Produktbild
+  country?: string;    // ISO-Ländercode des Anbieters, z.B. "AT" oder "DE"
+  network?: "direct" | "awin"; // Affiliate-Netzwerk; "awin" wrappt Links als Deeplink
+  awinMid?: string;    // AWIN Advertiser-ID (Merchant-ID) des Shops
+  description?: string; // Kurzbeschreibung des Sortiments – hilft dem LLM bei der Shop-Wahl
 }
 
 export interface Settings {
@@ -21,6 +25,7 @@ export interface Settings {
     provider: "azure" | "google";
     model: string; // Azure: Deployment-Name, Google: Modell-ID
   };
+  awinPublisherId?: string; // eigene AWIN Publisher-ID (awinaffid) für Deeplinks
   limits: {
     tokensPerDay: number; // Tokenbudget pro User und Tag
     clickBonusTokens: number; // Extra-Token je Klick auf einen Partnerlink
@@ -46,6 +51,9 @@ export const DEFAULT_SETTINGS: Settings = {
       searchUrl: "https://www.amazon.de/s?k={q}&tag={tag}",
       productUrl: "https://www.amazon.de/dp/{id}?tag={tag}",
       imageUrl: "https://images-eu.ssl-images-amazon.com/images/P/{id}.03._SL500_.jpg",
+      country: "DE",
+      network: "direct",
+      description: "Vollsortiment, liefert nach Österreich",
     },
     {
       // Österreichischer Preisvergleich. Publisher-Programm ist CPC-basiert;
@@ -57,6 +65,9 @@ export const DEFAULT_SETTINGS: Settings = {
       tag: "",
       searchUrl: "https://geizhals.at/?fs={q}",
       productUrl: "https://geizhals.at/?fs={q}",
+      country: "AT",
+      network: "direct",
+      description: "Preisvergleich über viele österreichische Händler, Schwerpunkt Elektronik/Haushalt/Sport",
     },
   ],
 };

@@ -68,10 +68,37 @@ export async function POST(req: Request) {
   }
   const userId = session?.user?.email ?? "dev";
 
-  const { messages, id: chatId }: { messages: UIMessage[]; id?: string } =
+  const {
+    messages,
+    id: chatId,
+    atOnly,
+  }: { messages: UIMessage[]; id?: string; atOnly?: boolean } =
     await req.json();
   const settings = await loadSettings();
-  const shops = settings.shops.filter((s) => s.enabled);
+  let shops = settings.shops.filter((s) => s.enabled);
+  // Nutzer-Präferenz „nur österreichische Shops“ – nur anwenden, wenn
+  // dadurch mindestens ein Shop übrig bleibt.
+  if (atOnly) {
+    const at = shops.filter((s) => s.country === "AT");
+    if (at.length > 0) shops = at;
+  }
+  const awinPublisherId = settings.awinPublisherId;
+
+  // Dem LLM sagen, welche Shops es gerade gibt, damit es sie gezielt nennt.
+  const shopInfo = shops
+    .map(
+      (s) =>
+        `- ${s.name} (${s.domain}${s.country ? `, ${s.country}` : ""})${
+          s.description ? `: ${s.description}` : ""
+        }`
+    )
+    .join("\n");
+  const systemPrompt =
+    SYSTEM_PROMPT +
+    `\n\nVerfügbare Partner-Shops (nur diese werden dem Nutzer verlinkt):\n${shopInfo}` +
+    (atOnly
+      ? "\nDer Nutzer möchte NUR bei österreichischen Anbietern kaufen – berücksichtige das bei deinen Empfehlungen und erwähne es nicht extra."
+      : "");
 
   // Tokenbudget pro Tag prüfen, bevor das LLM angeworfen wird.
   const tokenLimit = settings.limits?.tokensPerDay ?? 60000;
@@ -84,7 +111,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: getModel(settings),
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     onFinish: ({ totalUsage }) => {
@@ -145,10 +172,13 @@ export async function POST(req: Request) {
         }),
         execute: async ({ products }) => {
           const amazon = shops.find((s) => s.id === "amazon");
-          // Echte Produktdaten (ASIN, Preis, Bild, Rating) von Canopy holen.
+          // Echte Produktdaten (ASIN, Preis, Bild, Rating) von Canopy holen –
+          // nur sinnvoll, wenn Amazon überhaupt angeboten wird.
           const enriched = await Promise.all(
             products.map(async (p) => {
-              const hits = await searchAmazonProducts(p.searchQuery, 5);
+              const hits = amazon
+                ? await searchAmazonProducts(p.searchQuery, 5)
+                : [];
               // Besten Treffer wählen: LLM-ASIN falls in den Treffern, sonst Top-Hit.
               const match =
                 hits.find((h) => h.asin === p.asin) ??
@@ -186,8 +216,8 @@ export async function POST(req: Request) {
                 shop: shop.name,
                 url:
                   p.asin && shop.id === "amazon"
-                    ? productLink(shop, p.asin)
-                    : searchLink(shop, p.searchQuery),
+                    ? productLink(shop, p.asin, awinPublisherId)
+                    : searchLink(shop, p.searchQuery, awinPublisherId),
                 image:
                   "image" in p && p.image
                     ? p.image
