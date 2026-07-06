@@ -228,6 +228,7 @@ export async function POST(req: Request) {
                   ...p,
                   asin: match.asin,
                   priceHint: match.price ?? p.priceHint,
+                  priceValue: match.priceValue,
                   image: match.image,
                   rating: match.rating,
                   ratingsTotal: match.ratingsTotal,
@@ -248,20 +249,30 @@ export async function POST(req: Request) {
               // (Preis, Bild, vergüteter Deeplink) von AWIN-Partnershops.
               let awinHits: AwinProduct[] = [];
               try {
-                awinHits = searchAwinProducts(p.searchQuery, 3, awinMids);
+                awinHits = searchAwinProducts(p.searchQuery, 5, awinMids);
               } catch {
                 // Index evtl. noch leer – kein Problem
               }
-              const awinOffers = awinHits.map((h) => ({
-                shop: h.merchant,
-                url: h.deepLink,
-                image: h.image ?? undefined,
-                price:
-                  h.price != null
-                    ? `${h.price.toFixed(2).replace(".", ",")} ${h.currency ?? "€"}`
-                    : undefined,
-                productName: h.name,
-              }));
+              // Pro Shop nur das relevanteste Angebot – eine Card = ein Produkt,
+              // wählbar aus verschiedenen Shops.
+              const seenShops = new Set<string>();
+              const awinOffers = awinHits
+                .filter((h) => {
+                  if (seenShops.has(h.merchant)) return false;
+                  seenShops.add(h.merchant);
+                  return true;
+                })
+                .map((h) => ({
+                  shop: h.merchant,
+                  url: h.deepLink,
+                  image: h.image ?? undefined,
+                  price:
+                    h.price != null
+                      ? `${h.price.toFixed(2).replace(".", ",")} ${h.currency ?? "€"}`
+                      : undefined,
+                  priceValue: h.price ?? undefined,
+                  productName: h.name,
+                }));
               return {
                 ...p,
                 offers: [
@@ -277,6 +288,15 @@ export async function POST(req: Request) {
                         : p.asin && shop.id === "amazon"
                           ? productImage(shop, p.asin)
                           : undefined,
+                    // Echter Preis nur, wenn Canopy das Produkt bestätigt hat.
+                    price:
+                      shop.id === "amazon" && "priceValue" in p
+                        ? p.priceHint
+                        : undefined,
+                    priceValue:
+                      shop.id === "amazon" && "priceValue" in p
+                        ? p.priceValue
+                        : undefined,
                   })),
                   ...awinOffers,
                 ],

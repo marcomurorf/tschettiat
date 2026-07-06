@@ -14,6 +14,7 @@ export interface ProductOffer {
   url: string;
   image?: string;
   price?: string; // konkreter Preis aus einem Produkt-Feed, z.B. "49,99 EUR"
+  priceValue?: number; // numerischer Preis zum Sortieren
   productName?: string; // exakter Produktname beim Shop (Feed-Treffer)
 }
 
@@ -42,11 +43,25 @@ function placeholderEmoji(category?: string): string {
   return "📦";
 }
 
+// Angebote sortieren: günstigster echter Preis zuerst, Angebote ohne Preis
+// (reine Such-Links) ans Ende.
+function sortOffers(offers: ProductOffer[]): ProductOffer[] {
+  return [...offers].sort((a, b) => {
+    const pa = a.priceValue ?? Infinity;
+    const pb = b.priceValue ?? Infinity;
+    return pa - pb;
+  });
+}
+
 export function ProductCard({ product }: { product: Product }) {
-  const image = product.offers.find((o) => o.image)?.image;
+  const offers = sortOffers(product.offers);
+  const bestOffer = offers[0];
+  const moreOffers = offers.slice(1);
+  const image = offers.find((o) => o.image)?.image;
   const [imgFailed, setImgFailed] = useState(false);
   const [saved, setSaved] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [showOffers, setShowOffers] = useState(false);
   const [newName, setNewName] = useState("");
   const [basketNames, setBasketNames] = useState<string[]>([]);
 
@@ -66,7 +81,7 @@ export function ProductCard({ product }: { product: Product }) {
       brand: product.brand,
       priceHint: product.priceHint,
       category: product.category,
-      url: product.offers[0]?.url ?? "#",
+      url: bestOffer?.url ?? "#",
       image: showImage ? image : undefined,
     });
   };
@@ -148,19 +163,63 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         )}
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          {product.offers.map((o, i) => (
+          {bestOffer && (
             <a
-              key={`${o.shop}-${i}`}
-              href={o.url}
+              href={bestOffer.url}
               target="_blank"
               rel="nofollow sponsored noopener"
               onClick={trackClick}
-              title={o.productName}
-              className="block text-center bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2 transition-colors"
+              title={bestOffer.productName}
+              className="flex items-center justify-center gap-1.5 bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2 px-3 transition-colors"
             >
-              Bei {o.shop} ansehen{o.price ? ` – ${o.price}` : ""}*
+              <span className="truncate">Bei {bestOffer.shop}</span>
+              {bestOffer.price && (
+                <span className="font-semibold whitespace-nowrap">
+                  {bestOffer.price}
+                </span>
+              )}
+              <span aria-hidden>*</span>
             </a>
-          ))}
+          )}
+          {moreOffers.length > 0 && (
+            <div className="border border-cream-dark rounded-lg overflow-hidden">
+              <button
+                onClick={() => setShowOffers((v) => !v)}
+                className="w-full flex items-center justify-between text-xs text-ink-soft hover:text-accent px-3 py-1.5 transition-colors"
+              >
+                <span>
+                  {moreOffers.length} weitere{" "}
+                  {moreOffers.length === 1 ? "Shop" : "Shops"}
+                </span>
+                <span
+                  className={`transition-transform ${showOffers ? "rotate-180" : ""}`}
+                  aria-hidden
+                >
+                  ▾
+                </span>
+              </button>
+              {showOffers && (
+                <div className="border-t border-cream-dark divide-y divide-cream-dark">
+                  {moreOffers.map((o, i) => (
+                    <a
+                      key={`${o.shop}-${i}`}
+                      href={o.url}
+                      target="_blank"
+                      rel="nofollow sponsored noopener"
+                      onClick={trackClick}
+                      title={o.productName}
+                      className="flex items-center justify-between gap-2 text-xs px-3 py-2 hover:bg-cream transition-colors"
+                    >
+                      <span className="truncate">{o.shop}</span>
+                      <span className="whitespace-nowrap text-ink-soft">
+                        {o.price ?? "Preis im Shop"}*
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {!picking ? (
             <button
               onClick={() => {
