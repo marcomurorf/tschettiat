@@ -68,6 +68,25 @@ export default function LlmPage() {
               ))}
             </datalist>
           </label>
+          <label className="flex flex-col gap-1 text-sm w-52">
+            Kosten € / 1 Mio. Token
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={settings.llm.costPerMTokens ?? 4}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  llm: {
+                    ...settings.llm,
+                    costPerMTokens: Number(e.target.value) || 0,
+                  },
+                })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
         </div>
         <p className="text-xs text-ink-soft">
           API-Keys liegen in der .env auf dem Server (AZURE_OPENAI_*,

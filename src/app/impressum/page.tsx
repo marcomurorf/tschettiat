@@ -5,20 +5,35 @@ export const metadata = {
   robots: { index: false },
 };
 
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-card border border-cream-dark rounded-2xl p-5">
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      <div className="mt-2 text-ink-soft leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
 export default function ImpressumPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
-      <Link href="/" className="text-sm text-neutral-500 hover:underline">
+      <Link
+        href="/"
+        className="text-sm text-ink-soft hover:text-accent transition-colors"
+      >
         ← Zurück zu Tschetti
       </Link>
-      <h1 className="mt-4 text-3xl font-bold">Impressum</h1>
+      <h1 className="mt-4 text-3xl font-bold text-ink">Impressum</h1>
 
-      <section className="mt-8 space-y-6 text-neutral-700 dark:text-neutral-300">
-        <div>
-          <h2 className="text-lg font-semibold">
-            Angaben gemäß § 5 ECG und § 25 MedienG
-          </h2>
-          <p className="mt-2">
+      <section className="mt-8 space-y-4">
+        <Section title="Angaben gemäß § 5 ECG und § 25 MedienG">
+          <p>
             Marco Mursteiner
             <br />
             Palmengasse 21
@@ -27,41 +42,55 @@ export default function ImpressumPage() {
             <br />
             Österreich
           </p>
-        </div>
+        </Section>
 
-        <div>
-          <h2 className="text-lg font-semibold">Kontakt</h2>
-          <p className="mt-2">
-            E-Mail: <a href="mailto:info@tschetti.at" className="underline">info@tschetti.at</a>
+        <Section title="Kontakt">
+          <p>
+            E-Mail:{" "}
+            <a
+              href="mailto:hi@tschetti.de"
+              className="text-accent underline hover:text-accent-dark"
+            >
+              hi@tschetti.de
+            </a>
           </p>
-        </div>
+        </Section>
 
-        <div>
-          <h2 className="text-lg font-semibold">Unternehmensgegenstand</h2>
-          <p className="mt-2">
+        <Section title="Unternehmensgegenstand">
+          <p>
             Betrieb eines KI-gestützten Produktberatungs-Dienstes mit
             Affiliate-Empfehlungen.
           </p>
-        </div>
+        </Section>
 
-        <div>
-          <h2 className="text-lg font-semibold">Affiliate-Hinweis</h2>
-          <p className="mt-2">
-            Tschetti empfiehlt Produkte über Partnerprogramme (u.&nbsp;a. das
-            Amazon-Partnerprogramm). Bei Käufen über diese Links erhalten wir
-            eine Provision. Für dich ändert sich der Preis nicht.
+        <Section title="Kein Verkauf – reine Vermittlung">
+          <p>
+            Tschetti verkauft selbst keine Produkte und betreibt keinen
+            Online-Shop. Wir vermitteln lediglich an Partner-Shops weiter.
+            Kaufverträge kommen ausschließlich zwischen dir und dem jeweiligen
+            Shop zustande – für Bestellung, Bezahlung, Lieferung,
+            Gewährleistung und Rückgabe ist allein der jeweilige Shop
+            verantwortlich.
           </p>
-        </div>
+        </Section>
 
-        <div>
-          <h2 className="text-lg font-semibold">Haftung für Inhalte</h2>
-          <p className="mt-2">
+        <Section title="Affiliate-Hinweis">
+          <p>
+            Tschetti empfiehlt Produkte über Partnerprogramme (u.&nbsp;a. das
+            Amazon-Partnerprogramm und AWIN). Bei Käufen über diese Links
+            erhalten wir eine Provision. Für dich ändert sich der Preis nicht.
+          </p>
+        </Section>
+
+        <Section title="Haftung für Inhalte">
+          <p>
             Produktempfehlungen werden mithilfe von KI erstellt und können
             Fehler enthalten. Für die Richtigkeit, Vollständigkeit und
-            Aktualität der Inhalte übernehmen wir keine Gewähr. Maßgeblich sind
-            stets die Angaben im jeweiligen Shop.
+            Aktualität der Inhalte (insbesondere Preise und Verfügbarkeiten)
+            übernehmen wir keine Gewähr. Maßgeblich sind stets die Angaben im
+            jeweiligen Shop.
           </p>
-        </div>
+        </Section>
       </section>
     </main>
   );

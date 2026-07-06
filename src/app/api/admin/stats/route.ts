@@ -1,6 +1,7 @@
 // Aggregierte Statistiken für das Admin-Backend (durch Basic-Auth-Proxy geschützt).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { loadSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -63,12 +64,96 @@ export async function GET() {
        GROUP BY user_id ORDER BY tokens DESC LIMIT 10`
     )
     .all() as unknown as { userId: string; tokens: number; clicks: number }[];
+// Kosten: €/1 Mio. Token aus den Einstellungen
+  const settings = await loadSettings();
+  const costPerMTokens =
+    settings.llm.costPerMTokens ?? DEFAULT_SETTINGS.llm.costPerMTokens ?? 0;
+
+  // Token gesamt je User (für Gesamtkosten je User)
+  const userTotals = db
+    .prepare(
+      `SELECT user_id AS userId, SUM(tokens) AS tokens
+       FROM usage GROUP BY user_id`
+    )
+    .all() as unknown as { userId: string; tokens: number }[];
+  const totalTokensByUser = new Map(userTotals.map((u) => [u.userId, u.tokens]));
+
+  const topUsersWithCost = topUsers.map((u) => ({
+    ...u,
+    cost: (u.tokens / 1_000_000) * costPerMTokens,
+    totalTokens: totalTokensByUser.get(u.userId) ?? u.tokens,
+    totalCost:
+      ((totalTokensByUser.get(u.userId) ?? u.tokens) / 1_000_000) *
+      costPerMTokens,
+  }));
+
+  // Besucher-Statistik (cookielos, page_views)
+  const visitors = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM page_views WHERE ts >= ?) AS viewsToday,
+         (SELECT COUNT(DISTINCT visitor) FROM page_views WHERE ts >= ?) AS visitorsToday,
+         (SELECT COUNT(*) FROM page_views WHERE ts >= ?) AS views7d,
+         (SELECT COUNT(DISTINCT visitor) FROM page_views WHERE ts >= ?) AS visitors7d,
+         (SELECT COUNT(*) FROM page_views) AS viewsTotal`
+    )
+    .get(
+      new Date().setHours(0, 0, 0, 0),
+      new Date().setHours(0, 0, 0, 0),
+      since(7),
+      since(7)
+    ) as unknown as {
+    viewsToday: number;
+    visitorsToday: number;
+    views7d: number;
+    visitors7d: number;
+    viewsTotal: number;
+  };
+
+  const viewsPerDay = db
+    .prepare(
+      `SELECT date(ts / 1000, 'unixepoch') AS day,
+              COUNT(*) AS views,
+              COUNT(DISTINCT visitor) AS visitors
+       FROM page_views WHERE ts >= ?
+       GROUP BY day ORDER BY day DESC`
+    )
+    .all(since(14)) as unknown as {
+    day: string;
+    views: number;
+    visitors: number;
+  }[];
+
+  const topPaths = db
+    .prepare(
+      `SELECT path, COUNT(*) AS views
+       FROM page_views WHERE ts >= ?
+       GROUP BY path ORDER BY views DESC LIMIT 10`
+    )
+    .all(since(14)) as unknown as { path: string; views: number }[];
+
+  const topReferrers = db
+    .prepare(
+      `SELECT referrer, COUNT(*) AS views
+       FROM page_views
+       WHERE ts >= ? AND referrer IS NOT NULL AND referrer != ''
+       GROUP BY referrer ORDER BY views DESC LIMIT 10`
+    )
+    .all(since(14)) as unknown as { referrer: string; views: number }[];
 
   return NextResponse.json({
     clicks: { total: clickTotal, last7d: clicks7d, today: clicksToday },
     clicksPerDay,
     tokensPerDay,
-    totals,
-    topUsers,
+    totals: {
+      ...totals,
+      cost: (totals.tokens / 1_000_000) * costPerMTokens,
+    },
+    costPerMTokens,
+    topUsers: topUsersWithCost,
+    visitors,
+    viewsPerDay,
+    topPaths,
+    topReferrers,
   });
 }

@@ -71,6 +71,16 @@ if (!globalForDb.__tschettiDb) {
     CREATE INDEX IF NOT EXISTS idx_events_ts ON events (ts);
     CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events (type, ts);
 
+    -- Cookielose Besucher-Statistik (keine IP-Speicherung, nur Tages-Hash)
+    CREATE TABLE IF NOT EXISTS page_views (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts       INTEGER NOT NULL,
+      path     TEXT NOT NULL,
+      referrer TEXT,
+      visitor  TEXT NOT NULL  -- sha256(Tag+IP+UA), täglich rotierend, nicht rückführbar
+    );
+    CREATE INDEX IF NOT EXISTS idx_page_views_ts ON page_views (ts);
+
     -- AWIN: Advertiser (Partnerprogramme), per Sync aus der Management-API
     CREATE TABLE IF NOT EXISTS awin_merchants (
       mid        TEXT PRIMARY KEY, -- AWIN Advertiser-ID
