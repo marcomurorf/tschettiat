@@ -21,7 +21,7 @@ export async function listChats(userId: string): Promise<ChatMeta[]> {
     .prepare(
       "SELECT id, title, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC"
     )
-    .all(userId) as { id: string; title: string; updated_at: number }[];
+    .all(userId) as unknown as { id: string; title: string; updated_at: number }[];
   return rows.map((r) => ({ id: r.id, title: r.title, updatedAt: r.updated_at }));
 }
 
@@ -34,7 +34,7 @@ export async function loadChat(
     .prepare(
       "SELECT id, title, updated_at, messages FROM chats WHERE user_id = ? AND id = ?"
     )
-    .get(userId, chatId) as
+    .get(userId, chatId) as unknown as
     | { id: string; title: string; updated_at: number; messages: string }
     | undefined;
   if (!row) return null;

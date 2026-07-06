@@ -1,13 +1,13 @@
 // Einmalige Migration: JSON-Dateien (data/chats, data/baskets, data/usage) → SQLite.
 // Idempotent (INSERT OR REPLACE / OR IGNORE). Aufruf: node scripts/migrate-json-to-sqlite.mjs
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const DATA = join(process.cwd(), "data");
 mkdirSync(DATA, { recursive: true });
-const db = new Database(join(DATA, "tschetti.db"));
-db.pragma("journal_mode = WAL");
+const db = new DatabaseSync(join(DATA, "tschetti.db"));
+db.exec("PRAGMA journal_mode = WAL");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chats (

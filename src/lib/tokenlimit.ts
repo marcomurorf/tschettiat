@@ -17,7 +17,7 @@ function get(userId: string): UsageRow {
     .prepare(
       "SELECT tokens, bonus_tokens, bonus_clicks FROM usage WHERE user_id = ? AND day = ?"
     )
-    .get(userId, today()) as UsageRow | undefined;
+    .get(userId, today()) as unknown as UsageRow | undefined;
   return row ?? { tokens: 0, bonus_tokens: 0, bonus_clicks: 0 };
 }
 

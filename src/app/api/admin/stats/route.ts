@@ -11,17 +11,17 @@ function since(days: number): number {
 export async function GET() {
   const clickTotal = (db
     .prepare("SELECT COUNT(*) AS n FROM events WHERE type = 'affiliate_click'")
-    .get() as { n: number }).n;
+    .get() as unknown as { n: number }).n;
   const clicks7d = (db
     .prepare(
       "SELECT COUNT(*) AS n FROM events WHERE type = 'affiliate_click' AND ts >= ?"
     )
-    .get(since(7)) as { n: number }).n;
+    .get(since(7)) as unknown as { n: number }).n;
   const clicksToday = (db
     .prepare(
       "SELECT COUNT(*) AS n FROM events WHERE type = 'affiliate_click' AND ts >= ?"
     )
-    .get(new Date().setHours(0, 0, 0, 0)) as { n: number }).n;
+    .get(new Date().setHours(0, 0, 0, 0)) as unknown as { n: number }).n;
 
   // Klicks pro Tag, letzte 14 Tage
   const clicksPerDay = db
@@ -30,7 +30,7 @@ export async function GET() {
        FROM events WHERE type = 'affiliate_click' AND ts >= ?
        GROUP BY day ORDER BY day DESC`
     )
-    .all(since(14)) as { day: string; clicks: number }[];
+    .all(since(14)) as unknown as { day: string; clicks: number }[];
 
   // Token-Verbrauch pro Tag, letzte 14 Tage
   const tokensPerDay = db
@@ -38,7 +38,7 @@ export async function GET() {
       `SELECT day, SUM(tokens) AS tokens, COUNT(DISTINCT user_id) AS users
        FROM usage GROUP BY day ORDER BY day DESC LIMIT 14`
     )
-    .all() as { day: string; tokens: number; users: number }[];
+    .all() as unknown as { day: string; tokens: number; users: number }[];
 
   const totals = db
     .prepare(
@@ -48,7 +48,7 @@ export async function GET() {
          (SELECT COUNT(*) FROM basket_items) AS basketItems,
          (SELECT COALESCE(SUM(tokens), 0) FROM usage) AS tokens`
     )
-    .get() as {
+    .get() as unknown as {
     chatUsers: number;
     chats: number;
     basketItems: number;
@@ -62,7 +62,7 @@ export async function GET() {
        FROM usage WHERE day >= date('now', '-7 days')
        GROUP BY user_id ORDER BY tokens DESC LIMIT 10`
     )
-    .all() as { userId: string; tokens: number; clicks: number }[];
+    .all() as unknown as { userId: string; tokens: number; clicks: number }[];
 
   return NextResponse.json({
     clicks: { total: clickTotal, last7d: clicks7d, today: clicksToday },

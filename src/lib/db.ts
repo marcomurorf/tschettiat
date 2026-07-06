@@ -1,6 +1,8 @@
-// Zentrale SQLite-Datenbank (better-sqlite3, WAL-Modus).
+// Zentrale SQLite-Datenbank (node:sqlite, WAL-Modus).
 // Ersetzt die früheren JSON-Dateien unter data/chats, data/baskets, data/usage.
-import Database from "better-sqlite3";
+// node:sqlite statt better-sqlite3: braucht keine nativen Builds
+// (better-sqlite3 scheitert auf dem VPS an GLIBC 2.28 / Python 3.7).
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -8,14 +10,14 @@ const DIR = join(process.cwd(), "data");
 mkdirSync(DIR, { recursive: true });
 
 // Ein Singleton pro Prozess (überlebt Hot-Reload im Dev-Modus).
-const globalForDb = globalThis as unknown as { __tschettiDb?: Database.Database };
+const globalForDb = globalThis as unknown as { __tschettiDb?: DatabaseSync };
 
-export const db: Database.Database =
-  globalForDb.__tschettiDb ?? new Database(join(DIR, "tschetti.db"));
+export const db: DatabaseSync =
+  globalForDb.__tschettiDb ?? new DatabaseSync(join(DIR, "tschetti.db"));
 
 if (!globalForDb.__tschettiDb) {
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
+  db.exec("PRAGMA journal_mode = WAL");
+  db.exec("PRAGMA busy_timeout = 5000");
   db.exec(`
     CREATE TABLE IF NOT EXISTS chats (
       user_id    TEXT NOT NULL,

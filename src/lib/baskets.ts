@@ -38,7 +38,7 @@ export async function loadBaskets(userId: string): Promise<Basket[]> {
       `SELECT basket_name, key, name, brand, price_hint, category, url, image
        FROM basket_items WHERE user_id = ? ORDER BY created_at`
     )
-    .all(userId) as Row[];
+    .all(userId) as unknown as Row[];
   const map = new Map<string, Basket>();
   for (const r of rows) {
     let basket = map.get(r.basket_name);

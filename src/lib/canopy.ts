@@ -119,7 +119,7 @@ async function doSearch(query: string, limit: number): Promise<CanopyProduct[]> 
   // Cache-Hit?
   const cached = db
     .prepare("SELECT results, ts FROM product_search_cache WHERE query = ?")
-    .get(key) as { results: string; ts: number } | undefined;
+    .get(key) as unknown as { results: string; ts: number } | undefined;
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
     try {
       return (JSON.parse(cached.results) as CanopyProduct[]).slice(0, limit);

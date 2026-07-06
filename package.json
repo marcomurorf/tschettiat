@@ -14,7 +14,6 @@
     "@ai-sdk/react": "^4.0.16",
     "@auth/unstorage-adapter": "^2.11.2",
     "ai": "^7.0.15",
-    "better-sqlite3": "^12.11.1",
     "next": "16.2.10",
     "next-auth": "^5.0.0-beta.31",
     "nodemailer": "^7.0.13",
@@ -27,8 +26,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
+    "@types/node": "^22.20.0",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
