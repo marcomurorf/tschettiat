@@ -310,14 +310,13 @@ export function searchAwinProducts(
     .filter((t) => t.length > 1)
     .slice(0, 8);
   if (terms.length === 0) return [];
-  const ftsQuery = terms.map((t) => `"${t}"*`).join(" AND ");
 
   const midFilter =
     mids && mids.length > 0
       ? ` AND p.mid IN (${mids.map(() => "?").join(",")})`
       : "";
-  try {
-    const rows = db
+  const runQuery = (ftsQuery: string): AwinProduct[] =>
+    db
       .prepare(
         `SELECT p.id, p.mid, p.merchant, p.name, p.brand, p.category,
                 p.price, p.currency, p.deep_link AS deepLink, p.image
@@ -328,7 +327,14 @@ export function searchAwinProducts(
          LIMIT ?`
       )
       .all(ftsQuery, ...(mids ?? []), limit) as unknown as AwinProduct[];
-    return rows;
+
+  try {
+    // Erst streng (alle Begriffe müssen vorkommen), dann locker (mindestens
+    // einer) – LLM-Suchbegriffe enthalten oft Zusatzwörter, die im
+    // Produktnamen fehlen ("Segway Navimow Mähroboter" → nur "Navimow" matcht).
+    const strict = runQuery(terms.map((t) => `"${t}"*`).join(" AND "));
+    if (strict.length > 0) return strict;
+    return runQuery(terms.map((t) => `"${t}"*`).join(" OR "));
   } catch {
     return [];
   }

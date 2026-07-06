@@ -58,20 +58,6 @@ export const DEFAULT_SETTINGS: Settings = {
       network: "direct",
       description: "Vollsortiment, liefert nach Österreich",
     },
-    {
-      // Österreichischer Preisvergleich. Publisher-Programm ist CPC-basiert;
-      // Partner-Tag wird nach Freischaltung (bd@geizhals.at) nachgetragen.
-      id: "geizhals",
-      name: "Geizhals",
-      enabled: true,
-      domain: "geizhals.at",
-      tag: "",
-      searchUrl: "https://geizhals.at/?fs={q}",
-      productUrl: "https://geizhals.at/?fs={q}",
-      country: "AT",
-      network: "direct",
-      description: "Preisvergleich über viele österreichische Händler, Schwerpunkt Elektronik/Haushalt/Sport",
-    },
   ],
 };
 
