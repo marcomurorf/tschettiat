@@ -47,6 +47,17 @@ export const DEFAULT_SETTINGS: Settings = {
       productUrl: "https://www.amazon.de/dp/{id}?tag={tag}",
       imageUrl: "https://images-eu.ssl-images-amazon.com/images/P/{id}.03._SL500_.jpg",
     },
+    {
+      // Österreichischer Preisvergleich. Publisher-Programm ist CPC-basiert;
+      // Partner-Tag wird nach Freischaltung (bd@geizhals.at) nachgetragen.
+      id: "geizhals",
+      name: "Geizhals",
+      enabled: true,
+      domain: "geizhals.at",
+      tag: "",
+      searchUrl: "https://geizhals.at/?fs={q}",
+      productUrl: "https://geizhals.at/?fs={q}",
+    },
   ],
 };
 
