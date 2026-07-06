@@ -24,6 +24,8 @@ export interface Product {
   reason?: string;
   reviewSummary?: string;
   category?: string;
+  rating?: number;
+  ratingsTotal?: number;
   offers: ProductOffer[];
 }
 
@@ -106,6 +108,20 @@ export function ProductCard({ product }: { product: Product }) {
         {product.priceHint && (
           <div className="text-accent font-semibold text-sm">
             {product.priceHint}
+          </div>
+        )}
+        {typeof product.rating === "number" && (
+          <div className="text-xs text-ink-soft flex items-center gap-1">
+            <span className="text-amber-500">
+              {"★".repeat(Math.round(product.rating))}
+              {"☆".repeat(5 - Math.round(product.rating))}
+            </span>
+            <span>
+              {product.rating.toLocaleString("de-AT")}
+              {product.ratingsTotal
+                ? ` (${product.ratingsTotal.toLocaleString("de-AT")})`
+                : ""}
+            </span>
           </div>
         )}
         <ul className="text-sm text-ink-soft space-y-1">

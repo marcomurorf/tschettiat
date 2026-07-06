@@ -51,6 +51,13 @@ if (!globalForDb.__tschettiDb) {
       PRIMARY KEY (user_id, day)
     );
 
+    -- Cache für Canopy-Produktsuchen (spart API-Kontingent)
+    CREATE TABLE IF NOT EXISTS product_search_cache (
+      query   TEXT PRIMARY KEY,
+      results TEXT NOT NULL,
+      ts      INTEGER NOT NULL
+    );
+
     -- Event-Log für Statistiken (Klicks, Chat-Nachrichten, …)
     CREATE TABLE IF NOT EXISTS events (
       id      INTEGER PRIMARY KEY AUTOINCREMENT,

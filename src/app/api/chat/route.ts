@@ -21,6 +21,7 @@ import {
 } from "@/lib/chats";
 import { loadBaskets } from "@/lib/baskets";
 import { isOverLimit, recordUsage } from "@/lib/tokenlimit";
+import { searchAmazonProducts } from "@/lib/canopy";
 
 export const maxDuration = 60;
 
@@ -144,17 +145,42 @@ export async function POST(req: Request) {
         }),
         execute: async ({ products }) => {
           const amazon = shops.find((s) => s.id === "amazon");
-          // Erfundene ASINs aussortieren: Bild-Check gegen Amazon.
-          const checked = await Promise.all(
+          // Echte Produktdaten (ASIN, Preis, Bild, Rating) von Canopy holen.
+          const enriched = await Promise.all(
             products.map(async (p) => {
-              if (!p.asin || !amazon?.imageUrl) return p;
-              const img = productImage(amazon, p.asin);
-              const ok = img ? await asinExists(img) : false;
-              return ok ? p : { ...p, asin: undefined };
+              const hits = await searchAmazonProducts(p.searchQuery, 5);
+              // Besten Treffer wählen: LLM-ASIN falls in den Treffern, sonst Top-Hit.
+              const match =
+                hits.find((h) => h.asin === p.asin) ??
+                (p.brand
+                  ? hits.find((h) =>
+                      (h.brand ?? h.title)
+                        .toLowerCase()
+                        .includes(p.brand!.toLowerCase())
+                    )
+                  : undefined) ??
+                hits[0];
+              if (match) {
+                return {
+                  ...p,
+                  asin: match.asin,
+                  priceHint: match.price ?? p.priceHint,
+                  image: match.image,
+                  rating: match.rating,
+                  ratingsTotal: match.ratingsTotal,
+                };
+              }
+              // Kein Canopy-Treffer: LLM-ASIN wie bisher per Bild-Check validieren.
+              if (p.asin && amazon?.imageUrl) {
+                const img = productImage(amazon, p.asin);
+                const ok = img ? await asinExists(img) : false;
+                return ok ? p : { ...p, asin: undefined };
+              }
+              return p;
             })
           );
           return {
-            products: checked.map((p) => ({
+            products: enriched.map((p) => ({
               ...p,
               offers: shops.map((shop) => ({
                 shop: shop.name,
@@ -163,9 +189,11 @@ export async function POST(req: Request) {
                     ? productLink(shop, p.asin)
                     : searchLink(shop, p.searchQuery),
                 image:
-                  p.asin && shop.id === "amazon"
-                    ? productImage(shop, p.asin)
-                    : undefined,
+                  "image" in p && p.image
+                    ? p.image
+                    : p.asin && shop.id === "amazon"
+                      ? productImage(shop, p.asin)
+                      : undefined,
               })),
             })),
           };
