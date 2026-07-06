@@ -253,10 +253,29 @@ export async function POST(req: Request) {
               } catch {
                 // Index evtl. noch leer – kein Problem
               }
+              // Relevanz prüfen: Das AWIN-Angebot muss wirklich DASSELBE Produkt
+              // sein, sonst landet Zubehör (z.B. "Blade Assembly" statt
+              // Mähroboter) als vermeintlich günstigstes Angebot auf der Card.
+              // Heuristik: Tokens mit Ziffern (Modellnummern wie "H500E",
+              // "i105") müssen im Angebotsnamen vorkommen; ohne Modellnummer
+              // müssen alle Namens-Tokens vorkommen.
+              const nameTokens = `${p.brand ?? ""} ${p.name}`
+                .toLowerCase()
+                .replace(/[^\p{L}\p{N}\s]/gu, " ")
+                .split(/\s+/)
+                .filter((t) => t.length > 1);
+              const modelTokens = nameTokens.filter((t) => /\d/.test(t));
+              const isSameProduct = (offerName: string) => {
+                const n = offerName.toLowerCase();
+                if (modelTokens.length > 0)
+                  return modelTokens.some((t) => n.includes(t));
+                return nameTokens.every((t) => n.includes(t));
+              };
               // Pro Shop nur das relevanteste Angebot – eine Card = ein Produkt,
               // wählbar aus verschiedenen Shops.
               const seenShops = new Set<string>();
               const awinOffers = awinHits
+                .filter((h) => isSameProduct(h.name))
                 .filter((h) => {
                   if (seenShops.has(h.merchant)) return false;
                   seenShops.add(h.merchant);
