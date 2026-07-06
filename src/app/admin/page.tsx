@@ -330,20 +330,36 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <label className="flex flex-col gap-1 text-sm w-64">
-          AWIN Publisher-ID (awinaffid)
-          <input
-            placeholder="z.B. 123456"
-            value={settings.awinPublisherId ?? ""}
-            onChange={(e) =>
-              setSettings({ ...settings, awinPublisherId: e.target.value })
-            }
-            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
-          />
-          <span className="text-xs text-ink-soft">
-            Wird für Deeplinks aller Shops mit Netzwerk „AWIN“ verwendet.
-          </span>
-        </label>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex flex-col gap-1 text-sm w-64">
+            AWIN Publisher-ID (awinaffid)
+            <input
+              placeholder="z.B. 363087"
+              value={settings.awinPublisherId ?? ""}
+              onChange={(e) =>
+                setSettings({ ...settings, awinPublisherId: e.target.value })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+            <span className="text-xs text-ink-soft">
+              Wird für Deeplinks aller Shops mit Netzwerk „AWIN“ verwendet.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1 text-sm w-80">
+            AWIN Feed-API-Key (Download-Key)
+            <input
+              placeholder="aus AWIN: Toolbox → Create-a-Feed"
+              value={settings.awinFeedApiKey ?? ""}
+              onChange={(e) =>
+                setSettings({ ...settings, awinFeedApiKey: e.target.value })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white font-mono"
+            />
+            <span className="text-xs text-ink-soft">
+              Nötig für den Produkt-Feed-Import (unten).
+            </span>
+          </label>
+        </div>
 
         {settings.shops.map((shop, i) => (
           <div
@@ -443,6 +459,191 @@ export default function AdminPage() {
           </div>
         ))}
       </section>
+
+      <AwinSection />
     </main>
+  );
+}
+
+// ---------- AWIN: Programme, Feeds & Produkt-Index ----------
+
+interface AwinStatus {
+  publisherId: string | null;
+  apiTokenSet: boolean;
+  feedApiKeySet: boolean;
+  index: { mid: string; merchant: string; products: number; updatedAt: number }[];
+  joined?: { id: number; name: string; primaryRegion?: { countryCode: string } }[];
+  pending?: { id: number; name: string; primaryRegion?: { countryCode: string } }[];
+  feeds?: {
+    advertiserId: string;
+    advertiserName: string;
+    feedId: string;
+    membershipStatus: string;
+    productCount: number;
+    lastImported: string;
+  }[];
+  programmesError?: string;
+  feedsError?: string;
+}
+
+function AwinSection() {
+  const [status, setStatus] = useState<AwinStatus | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+
+  const load = () => {
+    fetch("/api/admin/awin")
+      .then((r) => r.json())
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  };
+  useEffect(load, []);
+
+  const run = async (action: string, feedId?: string) => {
+    setBusy(action + (feedId ?? ""));
+    setMsg("");
+    try {
+      const r = await fetch("/api/admin/awin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, feedId }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Fehler");
+      if (action === "sync-merchants") setMsg(`✓ ${j.merchants} Programme synchronisiert`);
+      else if (action === "sync-feeds")
+        setMsg(
+          `✓ Feeds importiert: ${(j.results as { advertiser: string; imported: number; error?: string }[])
+            .map((x) => `${x.advertiser}: ${x.error ? "Fehler" : x.imported}`)
+            .join(", ")}`
+        );
+      else setMsg(`✓ ${j.imported} Produkte importiert`);
+      load();
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (!status) return null;
+
+  return (
+    <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-lg">AWIN · Programme & Produkt-Feeds</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => run("sync-merchants")}
+            disabled={!!busy || !status.apiTokenSet}
+            className="text-sm border border-cream-dark rounded-lg px-3 py-1.5 hover:border-accent hover:text-accent transition-colors disabled:opacity-40"
+          >
+            {busy === "sync-merchants" ? "…" : "Programme syncen"}
+          </button>
+          <button
+            onClick={() => run("sync-feeds")}
+            disabled={!!busy || !status.feedApiKeySet}
+            className="text-sm border border-cream-dark rounded-lg px-3 py-1.5 hover:border-accent hover:text-accent transition-colors disabled:opacity-40"
+          >
+            {busy === "sync-feeds" ? "Importiere …" : "Alle Feeds importieren"}
+          </button>
+        </div>
+      </div>
+      {msg && <p className="text-sm text-ink-soft">{msg}</p>}
+
+      <div className="flex flex-wrap gap-6 text-sm">
+        <div>
+          API-Token:{" "}
+          {status.apiTokenSet ? "✓ gesetzt (Env)" : "✗ AWIN_API_TOKEN fehlt"}
+        </div>
+        <div>
+          Feed-Key: {status.feedApiKeySet ? "✓ gesetzt" : "✗ fehlt (oben eintragen)"}
+        </div>
+        <div>Publisher-ID: {status.publisherId ?? "—"}</div>
+      </div>
+
+      {status.pending && status.pending.length > 0 && (
+        <div>
+          <h3 className="font-medium text-sm mb-1">Ausstehende Bewerbungen</h3>
+          <p className="text-sm text-ink-soft">
+            {status.pending
+              .map((p) => `${p.name} (${p.primaryRegion?.countryCode ?? "?"})`)
+              .join(" · ")}
+          </p>
+        </div>
+      )}
+
+      {status.joined && (
+        <div>
+          <h3 className="font-medium text-sm mb-1">
+            Bestätigte Programme ({status.joined.length})
+          </h3>
+          {status.joined.length === 0 ? (
+            <p className="text-sm text-ink-soft">
+              Noch keine – sobald ein Advertiser dich bestätigt, hier „Programme
+              syncen“ klicken.
+            </p>
+          ) : (
+            <p className="text-sm text-ink-soft">
+              {status.joined
+                .map((p) => `${p.name} (${p.primaryRegion?.countryCode ?? "?"})`)
+                .join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+
+      {status.feeds && status.feeds.length > 0 && (
+        <div>
+          <h3 className="font-medium text-sm mb-2">Verfügbare Produkt-Feeds</h3>
+          <div className="space-y-1">
+            {status.feeds.map((f) => (
+              <div
+                key={f.feedId}
+                className="flex items-center justify-between text-sm border border-cream-dark rounded-lg px-3 py-1.5"
+              >
+                <span>
+                  {f.advertiserName} · {f.productCount.toLocaleString("de-AT")}{" "}
+                  Produkte · {f.membershipStatus}
+                </span>
+                <button
+                  onClick={() => run("import-feed", f.feedId)}
+                  disabled={!!busy}
+                  className="text-xs border border-cream-dark rounded px-2 py-1 hover:border-accent hover:text-accent transition-colors disabled:opacity-40"
+                >
+                  {busy === "import-feed" + f.feedId ? "…" : "Importieren"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-medium text-sm mb-1">Produkt-Index</h3>
+        {status.index.length === 0 ? (
+          <p className="text-sm text-ink-soft">
+            Noch leer – Feed-Key eintragen, speichern und „Alle Feeds
+            importieren“ klicken.
+          </p>
+        ) : (
+          <div className="text-sm text-ink-soft space-y-0.5">
+            {status.index.map((x) => (
+              <div key={x.mid}>
+                {x.merchant || x.mid}: {x.products.toLocaleString("de-AT")}{" "}
+                Produkte (Stand{" "}
+                {new Date(x.updatedAt).toLocaleDateString("de-AT")})
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {(status.programmesError || status.feedsError) && (
+        <p className="text-xs text-accent">
+          {status.programmesError} {status.feedsError}
+        </p>
+      )}
+    </section>
   );
 }

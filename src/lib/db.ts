@@ -70,6 +70,52 @@ if (!globalForDb.__tschettiDb) {
     );
     CREATE INDEX IF NOT EXISTS idx_events_ts ON events (ts);
     CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events (type, ts);
+
+    -- AWIN: Advertiser (Partnerprogramme), per Sync aus der Management-API
+    CREATE TABLE IF NOT EXISTS awin_merchants (
+      mid        TEXT PRIMARY KEY, -- AWIN Advertiser-ID
+      name       TEXT NOT NULL,
+      region     TEXT,             -- Primärregion, z.B. "AT"
+      domain     TEXT,
+      synced_at  INTEGER NOT NULL
+    );
+
+    -- AWIN: Produkt-Index aus den Datafeeds
+    CREATE TABLE IF NOT EXISTS awin_products (
+      id          TEXT PRIMARY KEY, -- aw_product_id
+      mid         TEXT NOT NULL,
+      merchant    TEXT NOT NULL,
+      name        TEXT NOT NULL,
+      brand       TEXT,
+      category    TEXT,
+      price       REAL,
+      currency    TEXT,
+      deep_link   TEXT NOT NULL,   -- vergüteter Affiliate-Link aus dem Feed
+      image       TEXT,
+      ean         TEXT,
+      updated_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_awin_products_mid ON awin_products (mid);
+
+    -- Volltextsuche über den Produkt-Index
+    CREATE VIRTUAL TABLE IF NOT EXISTS awin_products_fts USING fts5(
+      name, brand, category,
+      content='awin_products', content_rowid='rowid'
+    );
+    CREATE TRIGGER IF NOT EXISTS awin_products_ai AFTER INSERT ON awin_products BEGIN
+      INSERT INTO awin_products_fts(rowid, name, brand, category)
+      VALUES (new.rowid, new.name, new.brand, new.category);
+    END;
+    CREATE TRIGGER IF NOT EXISTS awin_products_ad AFTER DELETE ON awin_products BEGIN
+      INSERT INTO awin_products_fts(awin_products_fts, rowid, name, brand, category)
+      VALUES ('delete', old.rowid, old.name, old.brand, old.category);
+    END;
+    CREATE TRIGGER IF NOT EXISTS awin_products_au AFTER UPDATE ON awin_products BEGIN
+      INSERT INTO awin_products_fts(awin_products_fts, rowid, name, brand, category)
+      VALUES ('delete', old.rowid, old.name, old.brand, old.category);
+      INSERT INTO awin_products_fts(rowid, name, brand, category)
+      VALUES (new.rowid, new.name, new.brand, new.category);
+    END;
   `);
   globalForDb.__tschettiDb = db;
 }

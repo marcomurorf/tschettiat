@@ -13,6 +13,8 @@ export interface ProductOffer {
   shop: string;
   url: string;
   image?: string;
+  price?: string; // konkreter Preis aus einem Produkt-Feed, z.B. "49,99 EUR"
+  productName?: string; // exakter Produktname beim Shop (Feed-Treffer)
 }
 
 export interface Product {
@@ -146,16 +148,17 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         )}
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          {product.offers.map((o) => (
+          {product.offers.map((o, i) => (
             <a
-              key={o.shop}
+              key={`${o.shop}-${i}`}
               href={o.url}
               target="_blank"
               rel="nofollow sponsored noopener"
               onClick={trackClick}
+              title={o.productName}
               className="block text-center bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2 transition-colors"
             >
-              Bei {o.shop} ansehen*
+              Bei {o.shop} ansehen{o.price ? ` – ${o.price}` : ""}*
             </a>
           ))}
           {!picking ? (

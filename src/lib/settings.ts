@@ -26,6 +26,8 @@ export interface Settings {
     model: string; // Azure: Deployment-Name, Google: Modell-ID
   };
   awinPublisherId?: string; // eigene AWIN Publisher-ID (awinaffid) für Deeplinks
+  awinApiToken?: string; // OAuth-Token für api.awin.com (Programme, Transaktionen)
+  awinFeedApiKey?: string; // separater Key für Produkt-Feeds (AWIN: Toolbox → Create-a-Feed)
   limits: {
     tokensPerDay: number; // Tokenbudget pro User und Tag
     clickBonusTokens: number; // Extra-Token je Klick auf einen Partnerlink
@@ -36,6 +38,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   llm: { provider: "azure", model: "gpt-4o" },
+  awinPublisherId: "363087",
   limits: {
     tokensPerDay: 60000,
     clickBonusTokens: 5000,

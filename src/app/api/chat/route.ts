@@ -22,6 +22,8 @@ import {
 import { loadBaskets } from "@/lib/baskets";
 import { isOverLimit, recordUsage } from "@/lib/tokenlimit";
 import { searchAmazonProducts } from "@/lib/canopy";
+import { searchAwinProducts, type AwinProduct } from "@/lib/awin";
+import { db } from "@/lib/db";
 
 export const maxDuration = 60;
 
@@ -84,15 +86,46 @@ export async function POST(req: Request) {
   }
   const awinPublisherId = settings.awinPublisherId;
 
+  // Bei AT-Only nur Produkte von Merchants mit Region AT aus dem AWIN-Index.
+  let awinMids: string[] | undefined;
+  if (atOnly) {
+    try {
+      awinMids = (
+        db
+          .prepare("SELECT mid FROM awin_merchants WHERE region = 'AT'")
+          .all() as unknown as { mid: string }[]
+      ).map((r) => r.mid);
+    } catch {
+      awinMids = undefined;
+    }
+  }
+
   // Dem LLM sagen, welche Shops es gerade gibt, damit es sie gezielt nennt.
-  const shopInfo = shops
-    .map(
+  // AWIN-Partnershops mit indexierten Produkten kommen dynamisch dazu.
+  let awinMerchantInfo: string[] = [];
+  try {
+    const rows = db
+      .prepare(
+        `SELECT m.name, m.region, m.domain FROM awin_merchants m
+         WHERE EXISTS (SELECT 1 FROM awin_products p WHERE p.mid = m.mid)
+           ${atOnly ? "AND m.region = 'AT'" : ""}`
+      )
+      .all() as unknown as { name: string; region?: string; domain?: string }[];
+    awinMerchantInfo = rows.map(
+      (m) => `- ${m.name}${m.region ? ` (${m.region})` : ""}: AWIN-Partnershop mit durchsuchbarem Produktsortiment`
+    );
+  } catch {
+    // Tabelle evtl. noch leer
+  }
+  const shopInfo = [
+    ...shops.map(
       (s) =>
         `- ${s.name} (${s.domain}${s.country ? `, ${s.country}` : ""})${
           s.description ? `: ${s.description}` : ""
         }`
-    )
-    .join("\n");
+    ),
+    ...awinMerchantInfo,
+  ].join("\n");
   const systemPrompt =
     SYSTEM_PROMPT +
     `\n\nVerfügbare Partner-Shops (nur diese werden dem Nutzer verlinkt):\n${shopInfo}` +
@@ -210,22 +243,45 @@ export async function POST(req: Request) {
             })
           );
           return {
-            products: enriched.map((p) => ({
-              ...p,
-              offers: shops.map((shop) => ({
-                shop: shop.name,
-                url:
-                  p.asin && shop.id === "amazon"
-                    ? productLink(shop, p.asin, awinPublisherId)
-                    : searchLink(shop, p.searchQuery, awinPublisherId),
-                image:
-                  "image" in p && p.image
-                    ? p.image
-                    : p.asin && shop.id === "amazon"
-                      ? productImage(shop, p.asin)
-                      : undefined,
-              })),
-            })),
+            products: enriched.map((p) => {
+              // Lokalen AWIN-Produktindex durchsuchen: liefert echte Angebote
+              // (Preis, Bild, vergüteter Deeplink) von AWIN-Partnershops.
+              let awinHits: AwinProduct[] = [];
+              try {
+                awinHits = searchAwinProducts(p.searchQuery, 3, awinMids);
+              } catch {
+                // Index evtl. noch leer – kein Problem
+              }
+              const awinOffers = awinHits.map((h) => ({
+                shop: h.merchant,
+                url: h.deepLink,
+                image: h.image ?? undefined,
+                price:
+                  h.price != null
+                    ? `${h.price.toFixed(2).replace(".", ",")} ${h.currency ?? "€"}`
+                    : undefined,
+                productName: h.name,
+              }));
+              return {
+                ...p,
+                offers: [
+                  ...shops.map((shop) => ({
+                    shop: shop.name,
+                    url:
+                      p.asin && shop.id === "amazon"
+                        ? productLink(shop, p.asin, awinPublisherId)
+                        : searchLink(shop, p.searchQuery, awinPublisherId),
+                    image:
+                      "image" in p && p.image
+                        ? p.image
+                        : p.asin && shop.id === "amazon"
+                          ? productImage(shop, p.asin)
+                          : undefined,
+                  })),
+                  ...awinOffers,
+                ],
+              };
+            }),
           };
         },
       }),

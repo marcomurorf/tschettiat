@@ -8,6 +8,8 @@ const settingsSchema = z.object({
     provider: z.enum(["azure", "google"]),
     model: z.string().min(1).max(100),
   }),
+  awinPublisherId: z.string().max(20).optional(),
+  awinFeedApiKey: z.string().max(100).optional(),
   limits: z
     .object({
       tokensPerDay: z.number().int().min(1000).max(10_000_000),
@@ -29,6 +31,10 @@ const settingsSchema = z.object({
       searchUrl: z.string().url().max(300),
       productUrl: z.string().url().max(300),
       imageUrl: z.string().url().max(300).optional().or(z.literal("")),
+      country: z.string().max(2).optional(),
+      network: z.enum(["direct", "awin"]).optional(),
+      awinMid: z.string().max(20).optional(),
+      description: z.string().max(300).optional(),
     })
   ),
 });
