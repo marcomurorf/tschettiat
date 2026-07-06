@@ -1,6 +1,7 @@
 import { auth, signOut } from "@/auth";
 import { ChatShell } from "@/components/ChatShell";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function Home() {
   const session = await auth();
@@ -11,12 +12,14 @@ export default async function Home() {
   return (
     <div className="flex flex-col flex-1 h-dvh">
       <header className="flex items-center justify-between px-5 py-3 border-b border-cream-dark bg-cream/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🛒</span>
-          <span className="font-semibold text-lg tracking-tight">
-            tschetti<span className="text-accent">.at</span>
-          </span>
-        </div>
+        <Image
+          src="/logo.png"
+          alt="tschetti.at"
+          width={134}
+          height={48}
+          priority
+          className="h-9 w-auto"
+        />
         {session?.user ? (
           <form
             action={async () => {
@@ -42,7 +45,14 @@ export default async function Home() {
         <ChatShell />
       ) : (
         <main className="flex flex-col flex-1 items-center justify-center text-center px-4">
-          <div className="text-6xl mb-6">🛒</div>
+          <Image
+            src="/logo.png"
+            alt="tschetti.at"
+            width={335}
+            height={120}
+            priority
+            className="h-24 sm:h-28 w-auto mb-8"
+          />
           <h1 className="text-4xl font-bold mb-3 tracking-tight">
             Dein persönlicher Einkaufs-Assistent
           </h1>

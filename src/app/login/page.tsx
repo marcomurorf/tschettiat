@@ -1,6 +1,7 @@
 import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function LoginPage({
   searchParams,
@@ -13,11 +14,15 @@ export default async function LoginPage({
 
   return (
     <main className="flex flex-col flex-1 items-center justify-center min-h-dvh px-4">
-      <Link href="/" className="flex items-center gap-2 mb-8">
-        <span className="text-3xl">🛒</span>
-        <span className="font-semibold text-2xl tracking-tight">
-          tschetti<span className="text-accent">.at</span>
-        </span>
+      <Link href="/" className="mb-8">
+        <Image
+          src="/logo.png"
+          alt="tschetti.at"
+          width={223}
+          height={80}
+          priority
+          className="h-16 w-auto"
+        />
       </Link>
 
       <div className="bg-card border border-cream-dark rounded-2xl shadow-sm p-8 w-full max-w-sm space-y-5">

@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     siteName: "Tschetti",
     locale: "de_AT",
     type: "website",
+    images: [{ url: "/logo.png", width: 1753, height: 628 }],
   },
   robots: { index: true, follow: true },
 };

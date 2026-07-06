@@ -55,13 +55,13 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-5">
+    <section className="bg-card border border-cream-dark rounded-2xl p-4 sm:p-6 space-y-5">
       <h2 className="font-semibold text-lg">Statistiken</h2>
       {!stats ? (
         <p className="text-sm text-ink-soft">Lade …</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
             {(
               [
                 ["Besucher heute", stats.visitors?.visitorsToday ?? 0],
@@ -76,15 +76,17 @@ export default function AdminDashboard() {
             ).map(([label, value]) => (
               <div
                 key={label}
-                className="border border-cream-dark rounded-xl p-3 text-center"
+                className="border border-cream-dark rounded-xl p-2.5 sm:p-3 text-center min-w-0"
               >
-                <div className="text-xl font-semibold">{value}</div>
+                <div className="text-lg sm:text-xl font-semibold truncate">
+                  {value}
+                </div>
                 <div className="text-xs text-ink-soft">{label}</div>
               </div>
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium mb-2">
                 Partnerlink-Klicks (14 Tage)
@@ -143,39 +145,43 @@ export default function AdminDashboard() {
                 Aktivste User (7 Tage) · Kosten bei{" "}
                 {euro(stats.costPerMTokens ?? 0)} / 1 Mio. Token
               </h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-ink-soft">
-                    <th className="text-left font-normal">User</th>
-                    <th className="text-right font-normal">Token (7 T)</th>
-                    <th className="text-right font-normal">Kosten (7 T)</th>
-                    <th className="text-right font-normal">Kosten gesamt</th>
-                    <th className="text-right font-normal">Bonus-Klicks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.topUsers.map((u) => (
-                    <tr key={u.userId} className="border-b border-cream-dark">
-                      <td className="py-1 truncate max-w-48">{u.userId}</td>
-                      <td className="py-1 text-right font-medium">
-                        {u.tokens.toLocaleString("de-AT")}
-                      </td>
-                      <td className="py-1 text-right">{euro(u.cost ?? 0)}</td>
-                      <td className="py-1 text-right">
-                        {euro(u.totalCost ?? 0)}
-                      </td>
-                      <td className="py-1 text-right">{u.clicks}</td>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <table className="w-full text-sm min-w-[480px]">
+                  <thead>
+                    <tr className="text-xs text-ink-soft">
+                      <th className="text-left font-normal">User</th>
+                      <th className="text-right font-normal">Token (7 T)</th>
+                      <th className="text-right font-normal">Kosten (7 T)</th>
+                      <th className="text-right font-normal">Kosten gesamt</th>
+                      <th className="text-right font-normal">Bonus-Klicks</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {stats.topUsers.map((u) => (
+                      <tr key={u.userId} className="border-b border-cream-dark">
+                        <td className="py-1 truncate max-w-40">{u.userId}</td>
+                        <td className="py-1 text-right font-medium">
+                          {u.tokens.toLocaleString("de-AT")}
+                        </td>
+                        <td className="py-1 text-right">
+                          {euro(u.cost ?? 0)}
+                        </td>
+                        <td className="py-1 text-right">
+                          {euro(u.totalCost ?? 0)}
+                        </td>
+                        <td className="py-1 text-right">{u.clicks}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {/* Besucher-Statistik */}
           <div className="pt-2 border-t border-cream-dark space-y-5">
             <h2 className="font-semibold text-lg">Besucher (cookielos)</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
               {(
                 [
                   ["Aufrufe heute", stats.visitors?.viewsToday ?? 0],
@@ -187,15 +193,17 @@ export default function AdminDashboard() {
               ).map(([label, value]) => (
                 <div
                   key={label}
-                  className="border border-cream-dark rounded-xl p-3 text-center"
+                  className="border border-cream-dark rounded-xl p-2.5 sm:p-3 text-center min-w-0"
                 >
-                  <div className="text-xl font-semibold">{value}</div>
+                  <div className="text-lg sm:text-xl font-semibold truncate">
+                    {value}
+                  </div>
                   <div className="text-xs text-ink-soft">{label}</div>
                 </div>
               ))}
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
               <div>
                 <h3 className="text-sm font-medium mb-2">
                   Aufrufe pro Tag (14 Tage)
@@ -232,12 +240,12 @@ export default function AdminDashboard() {
                 {(stats.topPaths ?? []).length === 0 ? (
                   <p className="text-xs text-ink-soft">Noch keine Daten.</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm table-fixed">
                     <tbody>
                       {stats.topPaths.map((r) => (
                         <tr key={r.path} className="border-b border-cream-dark">
-                          <td className="py-1 truncate max-w-40">{r.path}</td>
-                          <td className="py-1 text-right font-medium">
+                          <td className="py-1 truncate">{r.path}</td>
+                          <td className="py-1 text-right font-medium w-14">
                             {r.views}
                           </td>
                         </tr>
@@ -246,7 +254,7 @@ export default function AdminDashboard() {
                   </table>
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-medium mb-2">
                   Herkunft / Referrer (14 Tage)
                 </h3>
@@ -255,17 +263,17 @@ export default function AdminDashboard() {
                     Noch keine externen Referrer.
                   </p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm table-fixed">
                     <tbody>
                       {stats.topReferrers.map((r) => (
                         <tr
                           key={r.referrer}
                           className="border-b border-cream-dark"
                         >
-                          <td className="py-1 truncate max-w-40">
-                            {r.referrer}
+                          <td className="py-1 truncate" title={r.referrer}>
+                            {r.referrer.replace(/^https?:\/\/(www\.)?/, "")}
                           </td>
-                          <td className="py-1 text-right font-medium">
+                          <td className="py-1 text-right font-medium w-14">
                             {r.views}
                           </td>
                         </tr>
