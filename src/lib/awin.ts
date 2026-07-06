@@ -131,6 +131,30 @@ const FEED_COLUMNS = [
   "ean",
 ].join(",");
 
+// Die Feed-Liste nennt Sprachen ausgeschrieben ("German"), die Download-URL
+// braucht ISO-Kürzel ("de").
+const LANGUAGE_CODES: Record<string, string> = {
+  german: "de",
+  english: "en",
+  french: "fr",
+  italian: "it",
+  spanish: "es",
+  dutch: "nl",
+  swedish: "sv",
+  polish: "pl",
+  danish: "da",
+  norwegian: "no",
+  finnish: "fi",
+  portuguese: "pt",
+};
+
+function langCode(language?: string): string {
+  if (!language) return "de";
+  const l = language.trim().toLowerCase();
+  if (l.length === 2) return l;
+  return LANGUAGE_CODES[l] ?? "de";
+}
+
 function feedDownloadUrl(feedApiKey: string, feedId: string, language = "de") {
   return (
     `${FEED_BASE}/datafeed/download/apikey/${encodeURIComponent(feedApiKey)}` +
@@ -150,11 +174,7 @@ export async function importFeed(
   feedApiKey: string,
   feed: { feedId: string; advertiserId: string; language?: string }
 ): Promise<{ imported: number }> {
-  const url = feedDownloadUrl(
-    feedApiKey,
-    feed.feedId,
-    (feed.language || "de").slice(0, 2).toLowerCase()
-  );
+  const url = feedDownloadUrl(feedApiKey, feed.feedId, langCode(feed.language));
   const res = await fetch(url, { signal: AbortSignal.timeout(300_000) });
   if (!res.ok || !res.body) {
     throw new Error(`AWIN Feed-Download fid=${feed.feedId}: HTTP ${res.status}`);
@@ -229,8 +249,23 @@ export async function syncAllFeeds(): Promise<
   const active = feeds.filter(
     (f) => f.membershipStatus.toLowerCase() === "active"
   );
-  const results = [];
+  // Pro Advertiser nur EINEN Feed importieren (Deutsch bevorzugt, dann Englisch),
+  // sonst überschreiben sich mehrsprachige Feeds desselben Merchants gegenseitig.
+  const langRank = (l: string) => {
+    const lang = l.toLowerCase();
+    if (lang.startsWith("german")) return 0;
+    if (lang.startsWith("english")) return 1;
+    return 2;
+  };
+  const byAdvertiser = new Map<string, AwinFeedInfo>();
   for (const f of active) {
+    const cur = byAdvertiser.get(f.advertiserId);
+    if (!cur || langRank(f.language) < langRank(cur.language)) {
+      byAdvertiser.set(f.advertiserId, f);
+    }
+  }
+  const results = [];
+  for (const f of byAdvertiser.values()) {
     try {
       const { imported } = await importFeed(key, f);
       results.push({ advertiser: f.advertiserName, feedId: f.feedId, imported });
