@@ -5,7 +5,13 @@ import { useAdminSettings } from "../useSettings";
 
 const MODELS: Record<string, string[]> = {
   azure: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"],
-  google: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+  google: [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+  ],
 };
 
 export default function LlmPage() {
