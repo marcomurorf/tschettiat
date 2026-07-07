@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { ChatShell } from "@/components/ChatShell";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,6 +8,9 @@ export default async function Home() {
   const devBypass =
     process.env.NODE_ENV !== "production" && process.env.DEV_SKIP_AUTH === "1";
   const loggedIn = Boolean(session?.user) || devBypass;
+  const name = session?.user?.name ?? null;
+  const firstName = name?.split(" ")[0] ?? null;
+  const image = session?.user?.image ?? null;
 
   return (
     <div className="flex flex-col h-dvh">
@@ -20,18 +23,31 @@ export default async function Home() {
           priority
           className="h-11 sm:h-13 w-auto"
         />
-        {session?.user ? (
-          <form
-            action={async () => {
-              "use server";
-              await signOut();
-            }}
+        {loggedIn ? (
+          <Link
+            href="/konto"
+            className="flex items-center gap-2 text-sm text-ink-soft hover:text-ink transition-colors"
+            title="Mein Konto"
           >
-            <button className="text-sm text-ink-soft hover:text-ink transition-colors">
-              <span className="hidden sm:inline">{session.user.email} · </span>
-              Abmelden
-            </button>
-          </form>
+            <span className="hidden sm:inline">
+              {name ?? session?.user?.email ?? "Konto"}
+            </span>
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={image}
+                alt=""
+                width={32}
+                height={32}
+                referrerPolicy="no-referrer"
+                className="w-8 h-8 rounded-full border border-cream-dark object-cover"
+              />
+            ) : (
+              <span className="w-8 h-8 rounded-full bg-accent-soft grid place-items-center text-sm font-medium">
+                {(name ?? session?.user?.email ?? "K").charAt(0).toUpperCase()}
+              </span>
+            )}
+          </Link>
         ) : (
           <Link
             href="/login"
@@ -43,7 +59,7 @@ export default async function Home() {
       </header>
 
       {loggedIn ? (
-        <ChatShell />
+        <ChatShell firstName={firstName} />
       ) : (
         <main className="flex flex-col flex-1 items-center justify-center text-center px-4">
           <Image

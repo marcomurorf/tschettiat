@@ -17,7 +17,7 @@ function newChatId() {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 24);
 }
 
-export function ChatShell() {
+export function ChatShell({ firstName }: { firstName?: string | null }) {
   const [chats, setChats] = useState<ChatMeta[]>([]);
   const [activeId, setActiveId] = useState<string>(() => newChatId());
   const [initialMessages, setInitialMessages] = useState<
@@ -153,6 +153,7 @@ export function ChatShell() {
             chatId={activeId}
             initialMessages={initialMessages}
             onChatUpdated={refreshList}
+            firstName={firstName}
           />
         )}
       </div>

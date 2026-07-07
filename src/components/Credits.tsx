@@ -148,6 +148,15 @@ export function Credits() {
             </div>
           </div>
 
+          <div className="border-t border-cream-dark pt-3">
+            <a
+              href="/konto"
+              className="block text-sm text-center text-ink-soft hover:text-accent transition-colors"
+            >
+              Mein Konto: Guthaben, Einladungen &amp; Kauf →
+            </a>
+          </div>
+
           {info.stripeEnabled && info.packages.length > 0 && (
             <div className="border-t border-cream-dark pt-3">
               <p className="text-sm font-semibold mb-2">Credits kaufen</p>

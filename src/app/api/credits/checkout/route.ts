@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { auth } from "@/auth";
 import { loadSettings } from "@/lib/settings";
+import { SITE_URL } from "@/lib/site";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
   }
 
   const stripe = new Stripe(key);
-  const origin = req.nextUrl.origin;
   const checkout = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
       packageId: pkg.id,
       tokens: String(pkg.tokens),
     },
-    success_url: `${origin}/?credits=success`,
-    cancel_url: `${origin}/?credits=cancel`,
+    success_url: `${SITE_URL}/?credits=success`,
+    cancel_url: `${SITE_URL}/?credits=cancel`,
   });
 
   return NextResponse.json({ url: checkout.url });

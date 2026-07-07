@@ -159,10 +159,12 @@ export function Chat({
   chatId,
   initialMessages,
   onChatUpdated,
+  firstName,
 }: {
   chatId: string;
   initialMessages?: UIMessage[];
   onChatUpdated?: () => void;
+  firstName?: string | null;
 }) {
   const { messages, sendMessage, status, error } = useChat({
     id: chatId,
@@ -329,7 +331,7 @@ export function Chat({
           <div className="text-center mt-8 sm:mt-16">
             <div className="text-5xl mb-4">🛒</div>
             <h2 className="text-2xl font-semibold mb-2">
-              Servus! Was suchst du?
+              {firstName ? `Servus, ${firstName}!` : "Servus!"} Was suchst du?
             </h2>
             <p className="text-ink-soft mb-6 sm:mb-8 px-2">
               Beschreib mir, was du brauchst – oder häng ein Foto an, ich finde
