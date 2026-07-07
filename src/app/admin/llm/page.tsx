@@ -201,6 +201,113 @@ export default function LlmPage() {
           60.000 Token/Tag ≈ 40-60 Anfragen.
         </p>
       </section>
+
+      {/* Features */}
+      <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-4">
+        <h2 className="font-semibold text-lg">Features</h2>
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.features?.travel ?? false}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                features: { ...settings.features, travel: e.target.checked },
+              })
+            }
+            className="w-4 h-4 accent-[#d95d39]"
+          />
+          Reiseplanung (Flüge &amp; Hotels) im Chat aktivieren
+        </label>
+        <p className="text-xs text-ink-soft">
+          Ausgeschaltet: Tschetti bleibt reiner Produkt-Assistent, die
+          Reise-Tools werden dem LLM gar nicht erst angeboten.
+        </p>
+      </section>
+
+      {/* Credits & Empfehlungen */}
+      <section className="bg-card border border-cream-dark rounded-2xl p-6 space-y-4">
+        <h2 className="font-semibold text-lg">Credits &amp; Empfehlungen</h2>
+        <label className="flex flex-col gap-1 text-sm w-64">
+          Bonus-Token je geworbenem Nutzer
+          <input
+            type="number"
+            min={0}
+            step={10000}
+            value={settings.limits?.referralBonusTokens ?? 100000}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                limits: {
+                  ...settings.limits,
+                  referralBonusTokens: Number(e.target.value) || 0,
+                },
+              })
+            }
+            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+          />
+        </label>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Kaufbare Token-Pakete (Stripe)</p>
+          {(settings.creditPackages ?? []).map((pkg, i) => (
+            <div key={pkg.id} className="flex gap-3 flex-wrap items-end">
+              <label className="flex flex-col gap-1 text-xs w-32">
+                Name
+                <input
+                  value={pkg.name}
+                  onChange={(e) => {
+                    const pkgs = [...(settings.creditPackages ?? [])];
+                    pkgs[i] = { ...pkg, name: e.target.value };
+                    setSettings({ ...settings, creditPackages: pkgs });
+                  }}
+                  className="border border-cream-dark rounded-lg px-2 py-1.5 bg-white text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs w-36">
+                Tokens
+                <input
+                  type="number"
+                  min={1000}
+                  step={50000}
+                  value={pkg.tokens}
+                  onChange={(e) => {
+                    const pkgs = [...(settings.creditPackages ?? [])];
+                    pkgs[i] = { ...pkg, tokens: Number(e.target.value) || 0 };
+                    setSettings({ ...settings, creditPackages: pkgs });
+                  }}
+                  className="border border-cream-dark rounded-lg px-2 py-1.5 bg-white text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs w-28">
+                Preis (Cent)
+                <input
+                  type="number"
+                  min={50}
+                  step={50}
+                  value={pkg.priceCents}
+                  onChange={(e) => {
+                    const pkgs = [...(settings.creditPackages ?? [])];
+                    pkgs[i] = {
+                      ...pkg,
+                      priceCents: Number(e.target.value) || 0,
+                    };
+                    setSettings({ ...settings, creditPackages: pkgs });
+                  }}
+                  className="border border-cream-dark rounded-lg px-2 py-1.5 bg-white text-sm"
+                />
+              </label>
+              <span className="text-xs text-ink-soft pb-2">
+                = {(pkg.priceCents / 100).toFixed(2).replace(".", ",")} €
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-ink-soft">
+          Credits verfallen nicht und greifen erst, wenn das Tagesbudget
+          aufgebraucht ist. Stripe-Keys liegen in der .env (STRIPE_SECRET_KEY,
+          STRIPE_WEBHOOK_SECRET).
+        </p>
+      </section>
     </div>
   );
 }

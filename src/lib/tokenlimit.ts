@@ -1,6 +1,9 @@
 // Tokenbudget pro User und Tag in SQLite (Tabelle usage).
 // Klicks auf Partnerlinks erhöhen das Budget still im Hintergrund.
+// Zusätzlich gibt es persistente Credits (gekauft/Empfehlung, lib/credits.ts):
+// sie greifen erst, wenn das Tagesbudget aufgebraucht ist.
 import { db, logEvent } from "./db";
+import { getCreditBalance, consumeCredits } from "./credits";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -21,20 +24,30 @@ function get(userId: string): UsageRow {
   return row ?? { tokens: 0, bonus_tokens: 0, bonus_clicks: 0 };
 }
 
-/** true, wenn der User sein Tagesbudget (inkl. Bonus) ausgeschöpft hat. */
+/** true, wenn Tagesbudget (inkl. Bonus) UND Credits ausgeschöpft sind. */
 export async function isOverLimit(
   userId: string,
   dailyLimit: number
 ): Promise<boolean> {
   const u = get(userId);
-  return u.tokens >= dailyLimit + u.bonus_tokens;
+  return u.tokens >= dailyLimit + u.bonus_tokens + getCreditBalance(userId);
+}
+
+/** Heute noch verfügbare Tokens (Tagesbudget + Bonus + Credits). */
+export function remainingTokens(userId: string, dailyLimit: number): number {
+  const u = get(userId);
+  return Math.max(
+    0,
+    dailyLimit + u.bonus_tokens + getCreditBalance(userId) - u.tokens
+  );
 }
 
 export async function recordUsage(
   userId: string,
   tokens: number,
   inputTokens = 0,
-  outputTokens = 0
+  outputTokens = 0,
+  dailyLimit?: number
 ): Promise<void> {
   db.prepare(
     `INSERT INTO usage (user_id, day, tokens, input_tokens, output_tokens)
@@ -45,6 +58,15 @@ export async function recordUsage(
        output_tokens = output_tokens + excluded.output_tokens`
   ).run(userId, today(), tokens, inputTokens, outputTokens);
   logEvent(userId, "chat_usage", { tokens, inputTokens, outputTokens });
+  // Verbrauch über Tagesbudget + Klick-Bonus hinaus von den Credits abbuchen.
+  if (dailyLimit != null) {
+    const u = get(userId);
+    const overage = Math.min(
+      tokens,
+      u.tokens - (dailyLimit + u.bonus_tokens)
+    );
+    if (overage > 0) consumeCredits(userId, overage);
+  }
 }
 
 /** Stiller Bonus für einen Klick auf einen Partnerlink (gedeckelt pro Tag). */

@@ -109,6 +109,32 @@ if (!globalForDb.__tschettiDb) {
     );
     CREATE INDEX IF NOT EXISTS idx_awin_products_mid ON awin_products (mid);
 
+    -- Persistentes Token-Guthaben (Credits): gekauft oder per Empfehlung.
+    -- Buchungsjournal; Kontostand = SUM(amount) je User.
+    CREATE TABLE IF NOT EXISTS credit_ledger (
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts      INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      amount  INTEGER NOT NULL,  -- positiv = Gutschrift, negativ = Verbrauch
+      reason  TEXT NOT NULL,     -- "purchase" | "referral" | "usage" | "admin"
+      ref     TEXT               -- z.B. Stripe-Session-ID oder geworbene E-Mail
+    );
+    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user ON credit_ledger (user_id);
+    -- Doppelte Stripe-Webhooks abfangen: eine Session nur einmal gutschreiben
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_ledger_ref
+      ON credit_ledger (reason, ref) WHERE ref IS NOT NULL;
+
+    -- Weiterempfehlung: Ref-Codes und wer wen geworben hat.
+    CREATE TABLE IF NOT EXISTS referral_codes (
+      code    TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE
+    );
+    CREATE TABLE IF NOT EXISTS referrals (
+      referred_user TEXT PRIMARY KEY,  -- der Geworbene (nur einmal werbbar)
+      referrer_user TEXT NOT NULL,     -- der Werber
+      ts            INTEGER NOT NULL
+    );
+
     -- Volltextsuche über den Produkt-Index
     CREATE VIRTUAL TABLE IF NOT EXISTS awin_products_fts USING fts5(
       name, brand, category,

@@ -20,6 +20,13 @@ export interface ShopConfig {
   description?: string; // Kurzbeschreibung des Sortiments – hilft dem LLM bei der Shop-Wahl
 }
 
+export interface CreditPackage {
+  id: string;        // z.B. "s", "m", "l"
+  name: string;      // Anzeigename, z.B. "Starter"
+  tokens: number;    // gutgeschriebene Tokens
+  priceCents: number; // Preis in Euro-Cent (Stripe)
+}
+
 export interface Settings {
   llm: {
     provider: "azure" | "google";
@@ -27,6 +34,9 @@ export interface Settings {
     costPerMTokens?: number; // veraltet: Pauschalsatz €/1 Mio. Token (Fallback)
     costInPerMTokens?: number; // Kosten pro 1 Mio. Input-Token (für Admin-Statistik)
     costOutPerMTokens?: number; // Kosten pro 1 Mio. Output-Token
+  };
+  features?: {
+    travel?: boolean; // Reiseplanung (Flüge & Hotels) im Chat aktivieren
   };
   awinPublisherId?: string; // eigene AWIN Publisher-ID (awinaffid) für Deeplinks
   awinApiToken?: string; // OAuth-Token für api.awin.com (Programme, Transaktionen)
@@ -36,7 +46,9 @@ export interface Settings {
     clickBonusTokens: number; // Extra-Token je Klick auf einen Partnerlink
     clickBonusMaxPerDay: number; // max. belohnte Klicks pro Tag
     unlimitedUsers?: string[]; // E-Mail-Adressen ohne Tageslimit
+    referralBonusTokens?: number; // Credits für den Werber je neu registriertem User
   };
+  creditPackages?: CreditPackage[]; // kaufbare Token-Pakete (Stripe)
   shops: ShopConfig[];
 }
 
@@ -48,11 +60,20 @@ export const DEFAULT_SETTINGS: Settings = {
     costOutPerMTokens: 10, // gpt-4o: $10 / 1 Mio. Output-Token
   },
   awinPublisherId: "363087",
+  features: {
+    travel: false, // zuerst nur Produktsuche; im Admin aktivierbar
+  },
   limits: {
     tokensPerDay: 60000,
     clickBonusTokens: 5000,
     clickBonusMaxPerDay: 6,
+    referralBonusTokens: 100000,
   },
+  creditPackages: [
+    { id: "s", name: "Starter", tokens: 250_000, priceCents: 299 },
+    { id: "m", name: "Standard", tokens: 1_000_000, priceCents: 799 },
+    { id: "l", name: "Power", tokens: 3_000_000, priceCents: 1999 },
+  ],
   shops: [
     {
       id: "amazon",

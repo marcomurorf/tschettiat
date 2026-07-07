@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { UIMessage } from "ai";
 import { Chat } from "./Chat";
 import { Basket } from "./Basket";
+import { Credits } from "./Credits";
 
 interface ChatMeta {
   id: string;
@@ -135,7 +136,10 @@ export function ChatShell() {
             Verläufe
           </button>
           <span className="hidden md:block" />
-          <Basket />
+          <div className="flex items-center gap-2">
+            <Credits />
+            <Basket />
+          </div>
         </div>
 
         {/* Aktiver Chat – key erzwingt Remount beim Wechsel */}

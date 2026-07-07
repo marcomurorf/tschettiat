@@ -10,6 +10,11 @@ const settingsSchema = z.object({
   }),
   awinPublisherId: z.string().max(20).optional(),
   awinFeedApiKey: z.string().max(100).optional(),
+  features: z
+    .object({
+      travel: z.boolean().optional(),
+    })
+    .optional(),
   limits: z
     .object({
       tokensPerDay: z.number().int().min(1000).max(10_000_000),
@@ -19,12 +24,24 @@ const settingsSchema = z.object({
         .array(z.string().email().max(200))
         .max(100)
         .optional(),
+      referralBonusTokens: z.number().int().min(0).max(100_000_000).optional(),
     })
     .default({
       tokensPerDay: 60000,
       clickBonusTokens: 5000,
       clickBonusMaxPerDay: 6,
     }),
+  creditPackages: z
+    .array(
+      z.object({
+        id: z.string().regex(/^[a-z0-9-]+$/).max(20),
+        name: z.string().min(1).max(50),
+        tokens: z.number().int().min(1000).max(1_000_000_000),
+        priceCents: z.number().int().min(50).max(1_000_000),
+      })
+    )
+    .max(10)
+    .optional(),
   shops: z.array(
     z.object({
       id: z.string().regex(/^[a-z0-9-]+$/),

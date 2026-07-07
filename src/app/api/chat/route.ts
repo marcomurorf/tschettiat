@@ -29,7 +29,7 @@ import { db } from "@/lib/db";
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `Du bist Tschetti, ein freundlicher österreichischer Einkaufs- und Lösungsassistent.
-Du hilfst Nutzern, das richtige Produkt, die richtige Reise oder die passende Lösung zu finden.
+Du hilfst Nutzern, das richtige Produkt oder die passende Lösung zu finden.
 
 Dein Aufgabenbereich ist STRIKT begrenzt auf: Produktberatung, Kaufempfehlungen, Produktvergleiche, Ausrüstungs-Sets und die Sammelkörbe des Nutzers.
 Nutzer können Fotos/Screenshots anhängen: Erkenne das gezeigte Produkt (Marke, Modell, Kategorie) so genau wie möglich und schlage es bzw. sehr ähnliche Alternativen über showProducts vor. Wenn du das Produkt nicht sicher erkennst, beschreibe was du siehst und stelle eine kurze Rückfrage. Analysiere Bilder ausschließlich zur Produkterkennung – keine Personenbeschreibung, keine anderen Bildanalysen.
@@ -48,6 +48,10 @@ Regeln:
 - Empfiehl nur Produkte, die es wirklich gibt. Gib eine Amazon-ASIN NUR an, wenn du dir zu 100 % sicher bist – erfinde niemals eine ASIN, ungültige werden verworfen. Im Zweifel weglassen.
 - Sucht der Nutzer eine komplette Ausrüstung oder ein Set (z. B. "alles für ein Campingwochenende"), stelle ein vollständiges Set aus bis zu 8 Produkten zusammen und gib jedem Produkt eine passende "category" (z. B. "Zelt", "Schlafen", "Kochen", "Licht").
 - Der Nutzer hat Sammelkörbe mit gemerkten Produkten. Bezieht er sich darauf (z. B. "Passt der Schlafsack zu meiner Decke?", "Was fehlt mir noch?"), rufe zuerst das Tool "getBaskets" auf und beziehe dich auf die konkreten Produkte darin.
+- Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
+
+// Reise-Teil des Prompts – nur aktiv, wenn das Feature im Admin eingeschaltet ist.
+const TRAVEL_PROMPT = `
 
 REISEN (Flüge & Hotels):
 Du hilfst auch bei Reiseplanung: Flüge, Hotels und komplette Trips.
@@ -58,8 +62,7 @@ Du hilfst auch bei Reiseplanung: Flüge, Hotels und komplette Trips.
 - Bei Hotel-Optionen in "showTravelPlan" übergib IMMER auch hotelId (aus dem searchHotels-Ergebnis) sowie checkin, checkout und adults der Suche – dann kann der Nutzer das Hotel direkt bei Tschetti buchen.
 - Bei einem Gesamtbudget (z. B. "3000 Euro") rechne grob vor: Flug + Hotel für den Zeitraum, und sag ehrlich, ob es sich ausgeht und wie viel Spielraum bleibt.
 - Wenn die Flugsuche nur Monats-Richtpreise liefert (dateExact=false), weise kurz darauf hin, dass die Preise Richtwerte für den Monat sind.
-- Nenne im Fließtext keine Preise – die stehen in der Timeline. Kurzes Fazit (beste Kombi fürs Budget) ist erwünscht.
-- Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
+- Nenne im Fließtext keine Preise – die stehen in der Timeline. Kurzes Fazit (beste Kombi fürs Budget) ist erwünscht.`;
 
 // Zubehör-Keywords: Treffer mit diesen Wörtern sind fast immer Ersatz-/
 // Zubehörteile statt des Hauptprodukts – außer der Nutzer sucht das Zubehör
@@ -160,6 +163,8 @@ export async function POST(req: Request) {
     if (at.length > 0) shops = at;
   }
   const awinPublisherId = settings.awinPublisherId;
+  // Reiseplanung (Flüge & Hotels) ist per Admin-Toggle aktivierbar.
+  const travelEnabled = settings.features?.travel === true;
 
   // Bei AT-Only nur Produkte von Merchants mit Region AT aus dem AWIN-Index.
   let awinMids: string[] | undefined;
@@ -203,6 +208,7 @@ export async function POST(req: Request) {
   ].join("\n");
   const systemPrompt =
     SYSTEM_PROMPT +
+    (travelEnabled ? TRAVEL_PROMPT : "") +
     `\n\nHeutiges Datum: ${new Date().toISOString().slice(0, 10)}` +
     `\n\nVerfügbare Partner-Shops (nur diese werden dem Nutzer verlinkt):\n${shopInfo}` +
     (atOnly
@@ -217,7 +223,7 @@ export async function POST(req: Request) {
   const tokenLimit = settings.limits?.tokensPerDay ?? 60000;
   if (!unlimited && (await isOverLimit(userId, tokenLimit))) {
     return new Response(
-      "Tageslimit erreicht – morgen geht's weiter!",
+      "Tageslimit erreicht – morgen geht's weiter! Tipp: Über das ⚡-Menü oben kannst du Freunde einladen oder Credits kaufen.",
       { status: 429 }
     );
   }
@@ -232,7 +238,9 @@ export async function POST(req: Request) {
         userId,
         totalUsage?.totalTokens ?? 0,
         totalUsage?.inputTokens ?? 0,
-        totalUsage?.outputTokens ?? 0
+        totalUsage?.outputTokens ?? 0,
+        // Bei unlimitierten Usern keine Credits abbuchen
+        unlimited ? undefined : tokenLimit
       );
     },
     tools: {
@@ -242,6 +250,7 @@ export async function POST(req: Request) {
         inputSchema: z.object({}),
         execute: async () => ({ baskets: await loadBaskets(userId) }),
       }),
+      ...(travelEnabled && {
       searchFlights: tool({
         description:
           "Sucht echte Flugangebote (Preise in EUR). IATA-Codes verwenden.",
@@ -357,6 +366,7 @@ export async function POST(req: Request) {
             .describe("Kurze Budget-Rechnung, z.B. 'Beste Kombi: ca. 2.450 € – 550 € Spielraum'"),
         }),
         execute: async (plan) => plan,
+      }),
       }),
       showProducts: tool({
         description:

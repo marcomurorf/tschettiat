@@ -73,4 +73,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   providers,
   pages: { signIn: "/login" },
+  events: {
+    // Erste Registrierung: wurde der Nutzer über einen Ref-Link geworben,
+    // bekommt der Werber eine Token-Gutschrift (Cookie aus /r/CODE).
+    async createUser({ user }) {
+      if (!user.email) return;
+      try {
+        const { cookies } = await import("next/headers");
+        const refCode = (await cookies()).get("tschetti_ref")?.value;
+        if (!refCode) return;
+        const [{ recordReferral }, { loadSettings }] = await Promise.all([
+          import("@/lib/credits"),
+          import("@/lib/settings"),
+        ]);
+        const settings = await loadSettings();
+        recordReferral(
+          user.email,
+          refCode,
+          settings.limits?.referralBonusTokens ?? 100000
+        );
+      } catch {
+        // Referral darf die Registrierung nie blockieren
+      }
+    },
+  },
 });

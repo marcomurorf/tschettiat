@@ -22,6 +22,7 @@
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "stripe": "^22.3.0",
     "unstorage": "^1.17.5",
     "zod": "^4.4.3"
   },
