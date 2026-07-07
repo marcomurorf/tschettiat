@@ -29,6 +29,27 @@ interface RawResult {
   ratingsTotal?: number | null;
 }
 
+// Amazon liefert statt Preis manchmal Text wie "Keine hervorgehobenen
+// Angebote verfügbar34,99" – nur echte Preisangaben durchlassen,
+// sonst aus dem numerischen Wert neu formatieren.
+function cleanPrice(
+  display?: string | null,
+  value?: number | null
+): { price?: string; priceValue?: number } {
+  const priceValue =
+    typeof value === "number" && value > 0 ? value : undefined;
+  if (display && /^\s*[€$£]?\s*\d[\d\s.,]*\s*[€$£]?\s*$/.test(display)) {
+    return { price: display.trim(), priceValue };
+  }
+  if (priceValue != null) {
+    return {
+      price: `€${priceValue.toFixed(2).replace(".", ",")}`,
+      priceValue,
+    };
+  }
+  return { price: undefined, priceValue };
+}
+
 /**
  * Sucht Produkte auf amazon.de über Canopy. Liefert [] bei Fehlern
  * oder fehlendem API-Key – der Chat funktioniert dann wie bisher.
@@ -122,7 +143,10 @@ async function doSearch(query: string, limit: number): Promise<CanopyProduct[]> 
     .get(key) as unknown as { results: string; ts: number } | undefined;
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
     try {
-      return (JSON.parse(cached.results) as CanopyProduct[]).slice(0, limit);
+      return (JSON.parse(cached.results) as CanopyProduct[])
+        .slice(0, limit)
+        // Auch alte Cache-Einträge mit kaputten Preis-Strings bereinigen.
+        .map((p) => ({ ...p, ...cleanPrice(p.price, p.priceValue) }));
     } catch {
       /* Cache kaputt → neu laden */
     }
@@ -151,8 +175,7 @@ async function doSearch(query: string, limit: number): Promise<CanopyProduct[]> 
       .map((r) => ({
         asin: r.asin,
         title: r.title,
-        price: r.price?.display ?? undefined,
-        priceValue: r.price?.value ?? undefined,
+        ...cleanPrice(r.price?.display, r.price?.value),
         // Bild in größerer Auflösung anfordern (Canopy liefert Thumbnails)
         image: r.mainImageUrl?.replace(/\._AC_[^.]+\./, "._AC_SL500_.") ?? undefined,
         rating: r.rating ?? undefined,

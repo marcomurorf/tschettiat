@@ -49,6 +49,28 @@ Regeln:
 - Der Nutzer hat Sammelkörbe mit gemerkten Produkten. Bezieht er sich darauf (z. B. "Passt der Schlafsack zu meiner Decke?", "Was fehlt mir noch?"), rufe zuerst das Tool "getBaskets" auf und beziehe dich auf die konkreten Produkte darin.
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
 
+// Token-Heuristik: Bezeichnet ein Treffer-/Angebotstitel wirklich DASSELBE
+// Produkt? Tokens mit Ziffern (Modellnummern wie "H500E", "120") müssen im
+// Titel vorkommen; ohne Modellnummer müssen alle Namens-Tokens vorkommen.
+// Verhindert, dass z. B. ein Vileda-Wischmob als Angebot für einen
+// Vileda-Wäscheständer durchgeht.
+function sameProductCheck(
+  brand: string | undefined,
+  name: string
+): (offerName: string) => boolean {
+  const nameTokens = `${brand ?? ""} ${name}`
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
+  const modelTokens = nameTokens.filter((t) => /\d/.test(t));
+  return (offerName: string) => {
+    const n = offerName.toLowerCase();
+    if (modelTokens.length > 0) return modelTokens.some((t) => n.includes(t));
+    return nameTokens.every((t) => n.includes(t));
+  };
+}
+
 // Prüft eine Amazon-ASIN über den Bild-Endpunkt: ungültige ASINs liefern
 // ein winziges Platzhalter-GIF (< 1 KB), echte Produktbilder sind größer.
 async function asinExists(imageUrl: string): Promise<boolean> {
@@ -239,17 +261,14 @@ export async function POST(req: Request) {
               const hits = amazon
                 ? await searchAmazonProducts(p.searchQuery, 5)
                 : [];
-              // Besten Treffer wählen: LLM-ASIN falls in den Treffern, sonst Top-Hit.
+              // Besten Treffer wählen: LLM-ASIN falls in den Treffern, sonst
+              // der erste Hit, der wirklich dasselbe Produkt ist. Kein blinder
+              // Fallback auf Marke/Top-Hit – lieber keine Anreicherung als ein
+              // falsches Produkt (Bild/Preis) auf der Karte.
+              const isSame = sameProductCheck(p.brand, p.name);
               const match =
                 hits.find((h) => h.asin === p.asin) ??
-                (p.brand
-                  ? hits.find((h) =>
-                      (h.brand ?? h.title)
-                        .toLowerCase()
-                        .includes(p.brand!.toLowerCase())
-                    )
-                  : undefined) ??
-                hits[0];
+                hits.find((h) => isSame(h.title));
               if (match) {
                 return {
                   ...p,
@@ -283,21 +302,7 @@ export async function POST(req: Request) {
               // Relevanz prüfen: Das AWIN-Angebot muss wirklich DASSELBE Produkt
               // sein, sonst landet Zubehör (z.B. "Blade Assembly" statt
               // Mähroboter) als vermeintlich günstigstes Angebot auf der Card.
-              // Heuristik: Tokens mit Ziffern (Modellnummern wie "H500E",
-              // "i105") müssen im Angebotsnamen vorkommen; ohne Modellnummer
-              // müssen alle Namens-Tokens vorkommen.
-              const nameTokens = `${p.brand ?? ""} ${p.name}`
-                .toLowerCase()
-                .replace(/[^\p{L}\p{N}\s]/gu, " ")
-                .split(/\s+/)
-                .filter((t) => t.length > 1);
-              const modelTokens = nameTokens.filter((t) => /\d/.test(t));
-              const isSameProduct = (offerName: string) => {
-                const n = offerName.toLowerCase();
-                if (modelTokens.length > 0)
-                  return modelTokens.some((t) => n.includes(t));
-                return nameTokens.every((t) => n.includes(t));
-              };
+              const isSameProduct = sameProductCheck(p.brand, p.name);
               // Pro Shop nur das relevanteste Angebot – eine Card = ein Produkt,
               // wählbar aus verschiedenen Shops.
               const seenShops = new Set<string>();
