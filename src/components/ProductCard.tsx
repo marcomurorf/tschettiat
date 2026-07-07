@@ -23,13 +23,24 @@ export interface Product {
   brand?: string;
   priceHint?: string;
   pros: string[];
+  cons?: string[];
   bestFor: string;
+  badge?: string;
   reason?: string;
   reviewSummary?: string;
   category?: string;
   rating?: number;
   ratingsTotal?: number;
   offers: ProductOffer[];
+}
+
+// Badge-Farben je Empfehlungstyp.
+function badgeStyle(badge: string): string {
+  if (/preis-leistung/i.test(badge)) return "bg-emerald-600 text-white";
+  if (/preis-tipp/i.test(badge)) return "bg-sky-600 text-white";
+  if (/premium/i.test(badge)) return "bg-ink text-cream";
+  if (/favorit/i.test(badge)) return "bg-accent text-white";
+  return "bg-amber-500 text-white";
 }
 
 // Kategorie-Emoji für den Platzhalter, wenn kein Produktbild verfügbar ist.
@@ -89,10 +100,19 @@ export function ProductCard({ product }: { product: Product }) {
   const showImage = image && !imgFailed;
 
   return (
-    <div className="bg-card rounded-2xl border border-cream-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col w-64 shrink-0">
+    <div className="bg-card rounded-2xl border border-cream-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col w-[78vw] max-w-[17rem] sm:w-64 shrink-0 snap-start">
       <div className="h-40 bg-white flex items-center justify-center p-4 relative">
+        {product.badge && (
+          <span
+            className={`absolute top-2 left-2 text-[10px] uppercase tracking-wide font-semibold rounded-full px-2 py-0.5 shadow-sm ${badgeStyle(product.badge)}`}
+          >
+            {product.badge}
+          </span>
+        )}
         {product.category && (
-          <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wide bg-accent-soft text-accent-dark font-semibold rounded-full px-2 py-0.5">
+          <span
+            className={`absolute ${product.badge ? "top-2 right-2" : "top-2 left-2"} text-[10px] uppercase tracking-wide bg-accent-soft text-accent-dark font-semibold rounded-full px-2 py-0.5`}
+          >
             {product.category}
           </span>
         )}
@@ -144,8 +164,14 @@ export function ProductCard({ product }: { product: Product }) {
         <ul className="text-sm text-ink-soft space-y-1">
           {product.pros.map((p, i) => (
             <li key={i} className="flex gap-1.5">
-              <span className="text-accent">✓</span>
+              <span className="text-emerald-600">✓</span>
               <span>{p}</span>
+            </li>
+          ))}
+          {product.cons?.map((c, i) => (
+            <li key={`c-${i}`} className="flex gap-1.5">
+              <span className="text-accent">–</span>
+              <span>{c}</span>
             </li>
           ))}
         </ul>
@@ -283,7 +309,7 @@ export function ProductCard({ product }: { product: Product }) {
 export function ProductCardRow({ products }: { products: Product[] }) {
   return (
     <div>
-      <div className="flex gap-3 overflow-x-auto pb-2 chat-scroll">
+      <div className="flex gap-3 overflow-x-auto pb-2 chat-scroll snap-x snap-mandatory scroll-px-1 -mx-4 px-4 sm:mx-0 sm:px-0">
         {products.map((p, i) => (
           <ProductCard key={i} product={p} />
         ))}

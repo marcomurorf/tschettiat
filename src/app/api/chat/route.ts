@@ -38,9 +38,11 @@ Bei solchen Anfragen antworte kurz: dass du ein Einkaufs-Assistent bist und gern
 Regeln:
 - Stelle bei vagen Anfragen 1-2 gezielte Rückfragen (Budget, Einsatzzweck), bevor du empfiehlst.
 - Wenn du konkrete Produkte empfiehlst, rufe IMMER das Tool "showProducts" mit 2-4 Produkten auf.
-- Begründe für jedes Produkt kurz und ehrlich, warum genau du es empfiehlst (Feld "reason") – bezogen auf die Anfrage des Nutzers.
-- Fasse im Feld "reviewSummary" zusammen, was Nutzer an dem Produkt erfahrungsgemäß loben oder kritisieren. Nur wenn du das Produkt gut genug kennst, sonst weglassen. Keine erfundenen Bewertungszahlen.
-- Nenne im Fließtext keine Preise oder Links – das übernehmen die Produkt-Karten.
+- Deine Empfehlungen sollen eine echte KAUFENTSCHEIDUNG ermöglichen. Decke, wenn sinnvoll, verschiedene Preisklassen ab (günstig / Preis-Leistung / Premium) und vergib passende "badge"-Werte, damit der Nutzer die Auswahl sofort einordnen kann. Höchstens ein Badge pro Wert.
+- Begründe für jedes Produkt kurz und ehrlich, warum genau du es empfiehlst (Feld "reason") – bezogen auf die Anfrage des Nutzers und mit Blick auf das Preis-Leistungs-Verhältnis (z. B. "bietet 90 % der Leistung des Testsiegers für die Hälfte des Preises").
+- Fasse im Feld "reviewSummary" zusammen, was Nutzer und Testberichte an dem Produkt erfahrungsgemäß loben (z. B. Akkulaufzeit, Verarbeitung, Lautstärke). Nur wenn du das Produkt gut genug kennst, sonst weglassen. Keine erfundenen Bewertungszahlen.
+- Sei ehrlich: Nenne im Feld "cons" 1-2 echte Schwächen oder häufige Kritikpunkte aus Rezensionen (z. B. "Ladezeit lang", "App teils hakelig"). Ein Produkt ohne Schwächen wirkt unglaubwürdig – aber erfinde nichts.
+- Nenne im Fließtext keine Preise oder Links – das übernehmen die Produkt-Karten. Halte den Fließtext kurz; die Details gehören auf die Karten. Nach den Karten darfst du in 1-2 Sätzen ein Fazit geben, welches Produkt für wen die beste Wahl ist.
 - Empfiehl nur Produkte, die es wirklich gibt. Gib eine Amazon-ASIN NUR an, wenn du dir zu 100 % sicher bist – erfinde niemals eine ASIN, ungültige werden verworfen. Im Zweifel weglassen.
 - Sucht der Nutzer eine komplette Ausrüstung oder ein Set (z. B. "alles für ein Campingwochenende"), stelle ein vollständiges Set aus bis zu 8 Produkten zusammen und gib jedem Produkt eine passende "category" (z. B. "Zelt", "Schlafen", "Kochen", "Licht").
 - Der Nutzer hat Sammelkörbe mit gemerkten Produkten. Bezieht er sich darauf (z. B. "Passt der Schlafsack zu meiner Decke?", "Was fehlt mir noch?"), rufe zuerst das Tool "getBaskets" auf und beziehe dich auf die konkreten Produkte darin.
@@ -176,17 +178,36 @@ export async function POST(req: Request) {
                   .optional()
                   .describe("Grobe Preisspanne, z.B. 'ca. 80-120 €'"),
                 pros: z.array(z.string()).max(3).describe("2-3 Stärken"),
+                cons: z
+                  .array(z.string())
+                  .max(2)
+                  .optional()
+                  .describe(
+                    "1-2 ehrliche Schwächen/Kritikpunkte aus Rezensionen. Weglassen wenn unsicher."
+                  ),
                 bestFor: z.string().describe("Für wen/was ideal"),
+                badge: z
+                  .enum([
+                    "Preis-Leistungs-Sieger",
+                    "Preis-Tipp",
+                    "Premium-Wahl",
+                    "Beliebt bei Käufern",
+                    "Tschettis Favorit",
+                  ])
+                  .optional()
+                  .describe(
+                    "Einordnung der Empfehlung. Pro Antwort jeden Wert höchstens einmal vergeben."
+                  ),
                 reason: z
                   .string()
                   .describe(
-                    "1-2 Sätze: Warum empfiehlst du genau dieses Produkt für diese Anfrage?"
+                    "1-2 Sätze: Warum empfiehlst du genau dieses Produkt für diese Anfrage? Mit Blick auf Preis-Leistung."
                   ),
                 reviewSummary: z
                   .string()
                   .optional()
                   .describe(
-                    "Was Nutzer erfahrungsgemäß loben/kritisieren, 1-2 Sätze. Weglassen wenn unsicher."
+                    "Was Nutzer/Tests erfahrungsgemäß loben, 1-2 Sätze. Weglassen wenn unsicher."
                   ),
                 category: z
                   .string()

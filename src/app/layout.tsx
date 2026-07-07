@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import Analytics from "@/components/Analytics";
 import "./globals.css";
@@ -28,6 +28,14 @@ export const metadata: Metadata = {
     images: [{ url: "/logo.png", width: 1753, height: 628 }],
   },
   robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  // Mobile Tastatur verkleinert den Viewport, statt das Layout zu überdecken.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

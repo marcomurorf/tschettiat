@@ -168,14 +168,14 @@ export function Chat({
       }}
     >
       {/* Verlauf */}
-      <div className="flex-1 overflow-y-auto chat-scroll py-6 space-y-5">
+      <div className="flex-1 overflow-y-auto chat-scroll py-4 sm:py-6 space-y-5 overscroll-contain">
         {messages.length === 0 && (
-          <div className="text-center mt-16">
+          <div className="text-center mt-8 sm:mt-16">
             <div className="text-5xl mb-4">🛒</div>
             <h2 className="text-2xl font-semibold mb-2">
               Servus! Was suchst du?
             </h2>
-            <p className="text-ink-soft mb-8">
+            <p className="text-ink-soft mb-6 sm:mb-8 px-2">
               Beschreib mir, was du brauchst – oder häng ein Foto an, ich finde
               die passenden Produkte für dich.
             </p>
@@ -273,7 +273,7 @@ export function Chat({
           e.preventDefault();
           submit(input);
         }}
-        className="sticky bottom-0 pb-5 pt-2 bg-cream"
+        className="sticky bottom-0 pt-2 bg-cream pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div className="flex justify-end mb-1.5 px-1">
           <button
@@ -368,7 +368,7 @@ export function Chat({
             }}
             rows={1}
             placeholder="Was suchst du? z. B. „Kopfhörer fürs Pendeln, max. 150 €“"
-            className="flex-1 resize-none bg-transparent outline-none placeholder:text-ink-soft/60 max-h-40"
+            className="flex-1 resize-none bg-transparent outline-none placeholder:text-ink-soft/60 max-h-40 text-base sm:text-sm"
           />
           <button
             type="submit"

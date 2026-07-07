@@ -28,7 +28,8 @@ export default async function Home() {
             }}
           >
             <button className="text-sm text-ink-soft hover:text-ink transition-colors">
-              {session.user.email} · Abmelden
+              <span className="hidden sm:inline">{session.user.email} · </span>
+              Abmelden
             </button>
           </form>
         ) : (

@@ -67,12 +67,12 @@ export function ChatShell() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0">
-      {/* Sidebar */}
+    <div className="flex flex-1 min-h-0 relative">
+      {/* Sidebar – mobil als Drawer über dem Inhalt, ab md fix links */}
       <aside
         className={`${
-          sidebarOpen ? "flex" : "hidden"
-        } md:flex flex-col w-64 shrink-0 border-r border-cream-dark bg-card/50 absolute md:static inset-y-0 left-0 z-20 md:z-auto bg-cream md:bg-transparent`}
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0 transition-transform duration-200 flex flex-col w-72 md:w-64 shrink-0 border-r border-cream-dark absolute md:static inset-y-0 left-0 z-30 md:z-auto bg-cream md:bg-card/50 shadow-xl md:shadow-none`}
       >
         <div className="p-3">
           <button
@@ -104,7 +104,7 @@ export function ChatShell() {
                   e.stopPropagation();
                   removeChat(c.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 text-ink-soft hover:text-accent transition-opacity px-1"
+                className="opacity-60 md:opacity-0 md:group-hover:opacity-100 text-ink-soft hover:text-accent transition-opacity px-1"
                 aria-label="Chat löschen"
                 title="Chat löschen"
               >
@@ -115,23 +115,30 @@ export function ChatShell() {
         </nav>
       </aside>
 
-      {/* Mobile: Sidebar-Toggle */}
-      <button
-        onClick={() => setSidebarOpen((o) => !o)}
-        className="md:hidden absolute top-16 left-3 z-30 bg-card border border-cream-dark rounded-lg px-2.5 py-1.5 text-sm shadow-sm"
-        aria-label="Chatverläufe"
-      >
-        ☰
-      </button>
       {sidebarOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-ink/20 z-10"
+          className="md:hidden fixed inset-0 bg-ink/30 z-20"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Aktiver Chat – key erzwingt Remount beim Wechsel */}
+      {/* Hauptbereich: Toolbar + aktiver Chat */}
       <div className="flex flex-col flex-1 min-w-0">
+        {/* Toolbar: Verläufe (mobil) links, Sammelkorb rechts */}
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b border-cream-dark bg-cream/80 backdrop-blur">
+          <button
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="md:hidden flex items-center gap-1.5 text-sm text-ink-soft bg-card border border-cream-dark rounded-full px-3 py-1.5 hover:border-accent hover:text-accent transition-colors"
+            aria-label="Chatverläufe öffnen"
+          >
+            <span aria-hidden>☰</span>
+            Verläufe
+          </button>
+          <span className="hidden md:block" />
+          <Basket />
+        </div>
+
+        {/* Aktiver Chat – key erzwingt Remount beim Wechsel */}
         {loading ? (
           <div className="flex-1 grid place-items-center text-ink-soft text-sm">
             Lade Verlauf…
@@ -145,8 +152,6 @@ export function ChatShell() {
           />
         )}
       </div>
-
-      <Basket />
     </div>
   );
 }
