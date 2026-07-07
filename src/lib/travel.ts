@@ -3,7 +3,38 @@ import { db } from "./db";
 
 const TP_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
 const TP_MARKER = process.env.TRAVELPAYOUTS_MARKER ?? "547391";
+const TP_TRS = process.env.TRAVELPAYOUTS_TRS ?? "747808";
 const LITEAPI_KEY = process.env.LITEAPI_KEY;
+
+/** Booking.com-Suchlink (Hotelname + Stadt, mit Daten) als Travelpayouts-Deeplink. */
+function bookingComLink(opts: {
+  hotelName: string;
+  city: string;
+  checkin: string;
+  checkout: string;
+  adults: number;
+}): string {
+  const target =
+    "https://www.booking.com/searchresults.html?" +
+    new URLSearchParams({
+      ss: `${opts.hotelName} ${opts.city}`,
+      checkin: opts.checkin,
+      checkout: opts.checkout,
+      group_adults: String(opts.adults),
+      no_rooms: "1",
+      group_children: "0",
+    }).toString();
+  return (
+    "https://tp.media/r?" +
+    new URLSearchParams({
+      marker: TP_MARKER,
+      trs: TP_TRS,
+      p: "4038", // Booking.com-Programm bei Travelpayouts
+      campaign_id: "101",
+      u: target,
+    }).toString()
+  );
+}
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
 
@@ -405,7 +436,13 @@ export async function searchHotels(opts: {
         parking,
         petsAllowed,
         facilities: facilities.slice(0, 8),
-        link: `https://www.google.com/travel/hotels?q=${encodeURIComponent(`${d.name} ${d.city ?? city}`)}`,
+        link: bookingComLink({
+          hotelName: d.name,
+          city: d.city ?? city,
+          checkin,
+          checkout,
+          adults,
+        }),
       });
     }
     return options;

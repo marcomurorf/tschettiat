@@ -268,7 +268,10 @@ function BookingModal({
 function OptionRow({ option, type }: { option: TravelOption; type: "flight" | "hotel" }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  // In-App-Buchung (LiteAPI) vorerst deaktiviert – wir vermitteln zu Booking.com.
+  // Zum Reaktivieren: Bedingung wieder einschalten.
   const bookable =
+    false &&
     type === "hotel" && !!option.hotelId && !!option.checkin && !!option.checkout;
 
   const inner = (
