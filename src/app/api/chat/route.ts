@@ -61,23 +61,61 @@ Du hilfst auch bei Reiseplanung: Flüge, Hotels und komplette Trips.
 - Nenne im Fließtext keine Preise – die stehen in der Timeline. Kurzes Fazit (beste Kombi fürs Budget) ist erwünscht.
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
 
+// Zubehör-Keywords: Treffer mit diesen Wörtern sind fast immer Ersatz-/
+// Zubehörteile statt des Hauptprodukts – außer der Nutzer sucht das Zubehör
+// selbst (dann steckt das Wort auch im gewünschten Produktnamen).
+const ACCESSORY_WORDS = [
+  "zubehör", "ersatzteil", "ersatz", "beutel", "staubbeutel",
+  "filter", "schlauch", "saugschlauch", "handgriff", "griff",
+  "düse", "bürste", "rohr", "teleskoprohr", "adapter", "halterung",
+  "aufsatz", "tasche", "hülle", "schutzfolie", "ladegerät", "netzteil",
+  "akku für", "kabel", "deckel", "dichtung", "rad", "räder",
+  "spare", "replacement", "accessory", "accessories", "attachment",
+  "kompatibel", "compatible", "passend für", "geeignet für",
+];
+
 // Token-Heuristik: Bezeichnet ein Treffer-/Angebotstitel wirklich DASSELBE
 // Produkt? Tokens mit Ziffern (Modellnummern wie "H500E", "120") müssen im
 // Titel vorkommen; ohne Modellnummer müssen alle Namens-Tokens vorkommen.
-// Verhindert, dass z. B. ein Vileda-Wischmob als Angebot für einen
-// Vileda-Wäscheständer durchgeht.
+// Zusätzlich Zubehör-Erkennung: "Handgriff für Miele Classic C1" enthält
+// zwar alle Produkt-Tokens, ist aber nicht der Staubsauger selbst.
 function sameProductCheck(
   brand: string | undefined,
   name: string
 ): (offerName: string) => boolean {
-  const nameTokens = `${brand ?? ""} ${name}`
-    .toLowerCase()
+  const wanted = `${brand ?? ""} ${name}`.toLowerCase();
+  const nameTokens = wanted
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((t) => t.length > 1);
   const modelTokens = nameTokens.filter((t) => /\d/.test(t));
+  // Zubehör-Wörter, die schon im gesuchten Produkt stecken (z.B. Suche nach
+  // "Staubsaugerbeutel"), dürfen nicht zum Ausschluss führen.
+  const blockedWords = ACCESSORY_WORDS.filter((w) => !wanted.includes(w));
   return (offerName: string) => {
     const n = offerName.toLowerCase();
+    const relevant = modelTokens.length > 0 ? modelTokens : nameTokens;
+    const firstToken = Math.min(
+      ...relevant.map((t) => {
+        const i = n.indexOf(t);
+        return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+      })
+    );
+    // 1) Zubehör-Keyword VOR dem ersten Produkt-Token → Titel beginnt mit
+    //    dem Teil ("Handgriff für Miele…", "Staubbeutel passend für…"): raus.
+    //    Echte Produkte ("Miele C1 … mit Beutel & HEPA-Filter") bleiben drin,
+    //    weil das Wort dort erst NACH Marke/Modell auftaucht.
+    if (
+      blockedWords.some((w) => {
+        const i = n.indexOf(w);
+        return i >= 0 && i < firstToken;
+      })
+    )
+      return false;
+    // 2) Muster "<Irgendwas> für <Produktname>": Produkt-Tokens erst nach
+    //    einem "für"/"for" → Zubehörteil ohne bekanntes Keyword, raus.
+    const forPos = n.search(/(^|\s)(für|for)\s/);
+    if (forPos >= 0 && firstToken > forPos) return false;
     if (modelTokens.length > 0) return modelTokens.some((t) => n.includes(t));
     return nameTokens.every((t) => n.includes(t));
   };
