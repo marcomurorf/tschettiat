@@ -69,18 +69,37 @@ export default function LlmPage() {
             </datalist>
           </label>
           <label className="flex flex-col gap-1 text-sm w-52">
-            Kosten € / 1 Mio. Token
+            Input € / 1 Mio. Token
             <input
               type="number"
               min={0}
               step={0.1}
-              value={settings.llm.costPerMTokens ?? 4}
+              value={settings.llm.costInPerMTokens ?? 2.5}
               onChange={(e) =>
                 setSettings({
                   ...settings,
                   llm: {
                     ...settings.llm,
-                    costPerMTokens: Number(e.target.value) || 0,
+                    costInPerMTokens: Number(e.target.value) || 0,
+                  },
+                })
+              }
+              className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm w-52">
+            Output € / 1 Mio. Token
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={settings.llm.costOutPerMTokens ?? 10}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  llm: {
+                    ...settings.llm,
+                    costOutPerMTokens: Number(e.target.value) || 0,
                   },
                 })
               }

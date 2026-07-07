@@ -14,7 +14,8 @@ interface Stats {
     tokens: number;
     cost: number;
   };
-  costPerMTokens: number;
+  costInPerMTokens: number;
+  costOutPerMTokens: number;
   topUsers: {
     userId: string;
     tokens: number;
@@ -142,8 +143,9 @@ export default function AdminDashboard() {
           {stats.topUsers.length > 0 && (
             <div>
               <h3 className="text-sm font-medium mb-2">
-                Aktivste User (7 Tage) · Kosten bei{" "}
-                {euro(stats.costPerMTokens ?? 0)} / 1 Mio. Token
+                Aktivste User (7 Tage) · Kosten:{" "}
+                {euro(stats.costInPerMTokens ?? 0)} Input /{" "}
+                {euro(stats.costOutPerMTokens ?? 0)} Output je 1 Mio. Token
               </h3>
               <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
                 <table className="w-full text-sm min-w-[480px]">

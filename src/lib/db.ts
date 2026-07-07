@@ -45,11 +45,13 @@ if (!globalForDb.__tschettiDb) {
     );
 
     CREATE TABLE IF NOT EXISTS usage (
-      user_id      TEXT NOT NULL,
-      day          TEXT NOT NULL,
-      tokens       INTEGER NOT NULL DEFAULT 0,
-      bonus_tokens INTEGER NOT NULL DEFAULT 0,
-      bonus_clicks INTEGER NOT NULL DEFAULT 0,
+      user_id       TEXT NOT NULL,
+      day           TEXT NOT NULL,
+      tokens        INTEGER NOT NULL DEFAULT 0,
+      input_tokens  INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      bonus_tokens  INTEGER NOT NULL DEFAULT 0,
+      bonus_clicks  INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (user_id, day)
     );
 
@@ -127,6 +129,16 @@ if (!globalForDb.__tschettiDb) {
       VALUES (new.rowid, new.name, new.brand, new.category);
     END;
   `);
+
+  // Migration: Input-/Output-Token-Spalten für bestehende Datenbanken
+  for (const col of ["input_tokens", "output_tokens"]) {
+    try {
+      db.exec(`ALTER TABLE usage ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 0`);
+    } catch {
+      // Spalte existiert bereits
+    }
+  }
+
   globalForDb.__tschettiDb = db;
 }
 

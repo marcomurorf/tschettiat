@@ -32,13 +32,19 @@ export async function isOverLimit(
 
 export async function recordUsage(
   userId: string,
-  tokens: number
+  tokens: number,
+  inputTokens = 0,
+  outputTokens = 0
 ): Promise<void> {
   db.prepare(
-    `INSERT INTO usage (user_id, day, tokens) VALUES (?, ?, ?)
-     ON CONFLICT (user_id, day) DO UPDATE SET tokens = tokens + excluded.tokens`
-  ).run(userId, today(), tokens);
-  logEvent(userId, "chat_usage", { tokens });
+    `INSERT INTO usage (user_id, day, tokens, input_tokens, output_tokens)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, day) DO UPDATE SET
+       tokens = tokens + excluded.tokens,
+       input_tokens = input_tokens + excluded.input_tokens,
+       output_tokens = output_tokens + excluded.output_tokens`
+  ).run(userId, today(), tokens, inputTokens, outputTokens);
+  logEvent(userId, "chat_usage", { tokens, inputTokens, outputTokens });
 }
 
 /** Stiller Bonus für einen Klick auf einen Partnerlink (gedeckelt pro Tag). */

@@ -18,10 +18,10 @@ export default async function LoginPage({
         <Image
           src="/logo.png"
           alt="tschetti.at"
-          width={223}
-          height={80}
+          width={279}
+          height={100}
           priority
-          className="h-16 w-auto"
+          className="h-20 sm:h-24 w-auto"
         />
       </Link>
 

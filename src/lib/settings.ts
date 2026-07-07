@@ -24,7 +24,9 @@ export interface Settings {
   llm: {
     provider: "azure" | "google";
     model: string; // Azure: Deployment-Name, Google: Modell-ID
-    costPerMTokens?: number; // Kosten in € pro 1 Mio. Token (für Admin-Statistik)
+    costPerMTokens?: number; // veraltet: Pauschalsatz €/1 Mio. Token (Fallback)
+    costInPerMTokens?: number; // Kosten pro 1 Mio. Input-Token (für Admin-Statistik)
+    costOutPerMTokens?: number; // Kosten pro 1 Mio. Output-Token
   };
   awinPublisherId?: string; // eigene AWIN Publisher-ID (awinaffid) für Deeplinks
   awinApiToken?: string; // OAuth-Token für api.awin.com (Programme, Transaktionen)
@@ -38,7 +40,12 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  llm: { provider: "azure", model: "gpt-4o", costPerMTokens: 4 },
+  llm: {
+    provider: "azure",
+    model: "gpt-4o",
+    costInPerMTokens: 2.5, // gpt-4o: $2,50 / 1 Mio. Input-Token
+    costOutPerMTokens: 10, // gpt-4o: $10 / 1 Mio. Output-Token
+  },
   awinPublisherId: "363087",
   limits: {
     tokensPerDay: 60000,

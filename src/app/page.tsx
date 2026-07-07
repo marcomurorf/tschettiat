@@ -15,10 +15,10 @@ export default async function Home() {
         <Image
           src="/logo.png"
           alt="tschetti.at"
-          width={134}
-          height={48}
+          width={178}
+          height={64}
           priority
-          className="h-9 w-auto"
+          className="h-11 sm:h-13 w-auto"
         />
         {session?.user ? (
           <form
@@ -48,10 +48,10 @@ export default async function Home() {
           <Image
             src="/logo.png"
             alt="tschetti.at"
-            width={335}
-            height={120}
+            width={447}
+            height={160}
             priority
-            className="h-24 sm:h-28 w-auto mb-8"
+            className="h-28 sm:h-36 w-auto mb-8"
           />
           <h1 className="text-4xl font-bold mb-3 tracking-tight">
             Dein persönlicher Einkaufs-Assistent

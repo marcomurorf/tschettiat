@@ -148,7 +148,12 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     onFinish: ({ totalUsage }) => {
-      void recordUsage(userId, totalUsage?.totalTokens ?? 0);
+      void recordUsage(
+        userId,
+        totalUsage?.totalTokens ?? 0,
+        totalUsage?.inputTokens ?? 0,
+        totalUsage?.outputTokens ?? 0
+      );
     },
     tools: {
       getBaskets: tool({

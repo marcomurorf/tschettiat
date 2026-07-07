@@ -36,10 +36,19 @@ export async function GET() {
   // Token-Verbrauch pro Tag, letzte 14 Tage
   const tokensPerDay = db
     .prepare(
-      `SELECT day, SUM(tokens) AS tokens, COUNT(DISTINCT user_id) AS users
+      `SELECT day, SUM(tokens) AS tokens,
+              SUM(input_tokens) AS inputTokens,
+              SUM(output_tokens) AS outputTokens,
+              COUNT(DISTINCT user_id) AS users
        FROM usage GROUP BY day ORDER BY day DESC LIMIT 14`
     )
-    .all() as unknown as { day: string; tokens: number; users: number }[];
+    .all() as unknown as {
+    day: string;
+    tokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    users: number;
+  }[];
 
   const totals = db
     .prepare(
@@ -47,45 +56,85 @@ export async function GET() {
          (SELECT COUNT(DISTINCT user_id) FROM chats) AS chatUsers,
          (SELECT COUNT(*) FROM chats) AS chats,
          (SELECT COUNT(*) FROM basket_items) AS basketItems,
-         (SELECT COALESCE(SUM(tokens), 0) FROM usage) AS tokens`
+         (SELECT COALESCE(SUM(tokens), 0) FROM usage) AS tokens,
+         (SELECT COALESCE(SUM(input_tokens), 0) FROM usage) AS inputTokens,
+         (SELECT COALESCE(SUM(output_tokens), 0) FROM usage) AS outputTokens`
     )
     .get() as unknown as {
     chatUsers: number;
     chats: number;
     basketItems: number;
     tokens: number;
+    inputTokens: number;
+    outputTokens: number;
   };
 
   // Aktivste User (Token, letzte 7 Tage)
   const topUsers = db
     .prepare(
-      `SELECT user_id AS userId, SUM(tokens) AS tokens, SUM(bonus_clicks) AS clicks
+      `SELECT user_id AS userId, SUM(tokens) AS tokens,
+              SUM(input_tokens) AS inputTokens,
+              SUM(output_tokens) AS outputTokens,
+              SUM(bonus_clicks) AS clicks
        FROM usage WHERE day >= date('now', '-7 days')
        GROUP BY user_id ORDER BY tokens DESC LIMIT 10`
     )
-    .all() as unknown as { userId: string; tokens: number; clicks: number }[];
-// Kosten: €/1 Mio. Token aus den Einstellungen
+    .all() as unknown as {
+    userId: string;
+    tokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    clicks: number;
+  }[];
+
+  // Kosten: getrennte Sätze pro 1 Mio. Input-/Output-Token; für Alt-Daten
+  // ohne Aufteilung greift der pauschale Fallback-Satz.
   const settings = await loadSettings();
-  const costPerMTokens =
-    settings.llm.costPerMTokens ?? DEFAULT_SETTINGS.llm.costPerMTokens ?? 0;
+  const costIn =
+    settings.llm.costInPerMTokens ??
+    DEFAULT_SETTINGS.llm.costInPerMTokens ??
+    0;
+  const costOut =
+    settings.llm.costOutPerMTokens ??
+    DEFAULT_SETTINGS.llm.costOutPerMTokens ??
+    0;
+  const costFlat = settings.llm.costPerMTokens ?? 4;
+  const calcCost = (tokens: number, input: number, output: number): number => {
+    const unattributed = Math.max(0, tokens - input - output);
+    return (
+      (input / 1_000_000) * costIn +
+      (output / 1_000_000) * costOut +
+      (unattributed / 1_000_000) * costFlat
+    );
+  };
 
   // Token gesamt je User (für Gesamtkosten je User)
   const userTotals = db
     .prepare(
-      `SELECT user_id AS userId, SUM(tokens) AS tokens
+      `SELECT user_id AS userId, SUM(tokens) AS tokens,
+              SUM(input_tokens) AS inputTokens,
+              SUM(output_tokens) AS outputTokens
        FROM usage GROUP BY user_id`
     )
-    .all() as unknown as { userId: string; tokens: number }[];
-  const totalTokensByUser = new Map(userTotals.map((u) => [u.userId, u.tokens]));
+    .all() as unknown as {
+    userId: string;
+    tokens: number;
+    inputTokens: number;
+    outputTokens: number;
+  }[];
+  const totalsByUser = new Map(userTotals.map((u) => [u.userId, u]));
 
-  const topUsersWithCost = topUsers.map((u) => ({
-    ...u,
-    cost: (u.tokens / 1_000_000) * costPerMTokens,
-    totalTokens: totalTokensByUser.get(u.userId) ?? u.tokens,
-    totalCost:
-      ((totalTokensByUser.get(u.userId) ?? u.tokens) / 1_000_000) *
-      costPerMTokens,
-  }));
+  const topUsersWithCost = topUsers.map((u) => {
+    const t = totalsByUser.get(u.userId);
+    return {
+      ...u,
+      cost: calcCost(u.tokens, u.inputTokens, u.outputTokens),
+      totalTokens: t?.tokens ?? u.tokens,
+      totalCost: t
+        ? calcCost(t.tokens, t.inputTokens, t.outputTokens)
+        : calcCost(u.tokens, u.inputTokens, u.outputTokens),
+    };
+  });
 
   // Besucher-Statistik (cookielos, page_views)
   const visitors = db
@@ -147,9 +196,10 @@ export async function GET() {
     tokensPerDay,
     totals: {
       ...totals,
-      cost: (totals.tokens / 1_000_000) * costPerMTokens,
+      cost: calcCost(totals.tokens, totals.inputTokens, totals.outputTokens),
     },
-    costPerMTokens,
+    costInPerMTokens: costIn,
+    costOutPerMTokens: costOut,
     topUsers: topUsersWithCost,
     visitors,
     viewsPerDay,
