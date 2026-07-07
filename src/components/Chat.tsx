@@ -526,7 +526,8 @@ export function Chat({
 
         {error && (
           <div className="text-sm text-accent bg-accent-soft rounded-lg px-4 py-2">
-            {error.message?.includes("Tageslimit")
+            {error.message?.includes("Tageslimit") ||
+            error.message?.includes("Rate-Limit")
               ? error.message
               : "Da ist etwas schiefgelaufen – bitte versuch es nochmal."}
           </div>

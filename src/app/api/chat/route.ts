@@ -542,6 +542,16 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
+    // Fehler im Stream (z.B. Gemini-Rate-Limit) nicht stumm verschlucken,
+    // sondern loggen und dem Nutzer verständlich anzeigen.
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("Chat-Stream-Fehler:", msg);
+      if (/quota|rate.?limit|429|resource.?exhausted/i.test(msg)) {
+        return "Rate-Limit: Gerade sind zu viele Anfragen unterwegs – bitte versuch es in etwa einer halben Minute noch einmal.";
+      }
+      return "Da ist etwas schiefgelaufen – bitte versuch es nochmal.";
+    },
     onFinish: async ({ messages: allMessages }) => {
       if (!isValidChatId(chatId)) return;
       // Beim ersten Speichern eine knappe Headline vom LLM erzeugen lassen.
