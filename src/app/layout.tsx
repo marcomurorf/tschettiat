@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
-import Script from "next/script";
 import Analytics from "@/components/Analytics";
 import "./globals.css";
 
@@ -48,12 +47,6 @@ export default function RootLayout({
     <html lang="de" className={`${outfit.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-cream text-ink font-sans">
         <Analytics />
-        {/* Travelpayouts-Verifizierung / Partner-Script (Marker 547391) */}
-        <Script
-          id="travelpayouts"
-          src="https://tpembars.com/NTQ3Mzkx.js?t=547391"
-          strategy="afterInteractive"
-        />
         {children}
       </body>
     </html>
