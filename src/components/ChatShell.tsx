@@ -20,6 +20,10 @@ function newChatId() {
 export function ChatShell({ firstName }: { firstName?: string | null }) {
   const [chats, setChats] = useState<ChatMeta[]>([]);
   const [activeId, setActiveId] = useState<string>(() => newChatId());
+  // Rückkehr vom Stripe-Checkout: ?credits=success|cancel → Toast zeigen
+  const [creditsToast, setCreditsToast] = useState<"success" | "cancel" | null>(
+    null
+  );
   const [initialMessages, setInitialMessages] = useState<
     UIMessage[] | undefined
   >(undefined);
@@ -38,6 +42,26 @@ export function ChatShell({ firstName }: { firstName?: string | null }) {
   useEffect(() => {
     refreshList();
   }, [refreshList]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const credits = params.get("credits");
+    if (credits === "success" || credits === "cancel") {
+      setCreditsToast(credits);
+      // Query-Parameter entfernen, damit der Toast bei Reload nicht wiederkommt
+      params.delete("credits");
+      const rest = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (rest ? `?${rest}` : "")
+      );
+      if (credits === "success") {
+        const t = setTimeout(() => setCreditsToast(null), 8000);
+        return () => clearTimeout(t);
+      }
+    }
+  }, []);
 
   const openChat = async (id: string) => {
     if (id === activeId) return;
@@ -69,6 +93,35 @@ export function ChatShell({ firstName }: { firstName?: string | null }) {
 
   return (
     <div className="flex flex-1 min-h-0 relative">
+      {/* Toast nach Stripe-Checkout */}
+      {creditsToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-2rem)]">
+          <div
+            className={`flex items-start gap-3 rounded-xl border shadow-lg px-4 py-3 text-sm ${
+              creditsToast === "success"
+                ? "bg-card border-accent/40 text-ink"
+                : "bg-card border-cream-dark text-ink-soft"
+            }`}
+          >
+            <span aria-hidden className="text-lg leading-none mt-0.5">
+              {creditsToast === "success" ? "🎉" : "ℹ️"}
+            </span>
+            <span className="flex-1">
+              {creditsToast === "success"
+                ? "Danke! Deine Credits wurden gutgeschrieben – viel Spaß beim Shoppen."
+                : "Kauf abgebrochen – es wurde nichts abgebucht."}
+            </span>
+            <button
+              onClick={() => setCreditsToast(null)}
+              className="text-ink-soft hover:text-accent transition-colors"
+              aria-label="Hinweis schließen"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar – mobil als Drawer über dem Inhalt, ab md fix links */}
       <aside
         className={`${
