@@ -179,6 +179,30 @@ export function Account() {
         </p>
       </section>
 
+      {/* Einstellungen */}
+      <section className="bg-card border border-cream-dark rounded-2xl p-5">
+        <h2 className="font-semibold mb-3">Einstellungen</h2>
+        <div className="flex items-center justify-between gap-3 opacity-60">
+          <div>
+            <p className="text-sm font-medium">
+              🇦🇹 Nur österreichische Shops{" "}
+              <span className="text-[10px] font-semibold uppercase tracking-wide bg-cream-dark text-ink-soft rounded-full px-2 py-0.5 align-middle">
+                Coming soon
+              </span>
+            </p>
+            <p className="text-xs text-ink-soft mt-0.5">
+              Empfehlungen ausschließlich von Anbietern aus Österreich.
+            </p>
+          </div>
+          <span
+            aria-disabled
+            className="relative inline-block w-10 h-6 rounded-full bg-cream-dark shrink-0 cursor-not-allowed"
+          >
+            <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow" />
+          </span>
+        </div>
+      </section>
+
       {/* Kaufen */}
       {info.stripeEnabled && info.packages.length > 0 && (
         <section className="bg-card border border-cream-dark rounded-2xl p-5">
