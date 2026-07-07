@@ -23,6 +23,7 @@ import { loadBaskets } from "@/lib/baskets";
 import { isOverLimit, recordUsage } from "@/lib/tokenlimit";
 import { searchAmazonProducts } from "@/lib/canopy";
 import { searchAwinProducts, type AwinProduct } from "@/lib/awin";
+import { searchFlights, searchHotels } from "@/lib/travel";
 import { db } from "@/lib/db";
 
 export const maxDuration = 60;
@@ -47,6 +48,16 @@ Regeln:
 - Empfiehl nur Produkte, die es wirklich gibt. Gib eine Amazon-ASIN NUR an, wenn du dir zu 100 % sicher bist – erfinde niemals eine ASIN, ungültige werden verworfen. Im Zweifel weglassen.
 - Sucht der Nutzer eine komplette Ausrüstung oder ein Set (z. B. "alles für ein Campingwochenende"), stelle ein vollständiges Set aus bis zu 8 Produkten zusammen und gib jedem Produkt eine passende "category" (z. B. "Zelt", "Schlafen", "Kochen", "Licht").
 - Der Nutzer hat Sammelkörbe mit gemerkten Produkten. Bezieht er sich darauf (z. B. "Passt der Schlafsack zu meiner Decke?", "Was fehlt mir noch?"), rufe zuerst das Tool "getBaskets" auf und beziehe dich auf die konkreten Produkte darin.
+
+REISEN (Flüge & Hotels):
+Du hilfst auch bei Reiseplanung: Flüge, Hotels und komplette Trips.
+- Für Flugsuchen rufe "searchFlights" auf. Leite die IATA-Flughafencodes selbst ab (Wien=VIE, New York=JFK, München=MUC usw.). Fehlt das Jahr, nimm das nächste zukünftige Datum an.
+- Für Hotelsuchen rufe "searchHotels" auf (Stadt + ISO-Ländercode, z. B. Munich/DE, New York/US – Städtenamen auf ENGLISCH). Übergib Wünsche wie Sterne, Parkplatz, Haustiere und Maximalpreis pro Nacht als Parameter.
+- Fehlen Reisedaten (Datum, Personenzahl), frage kurz nach – außer sie sind offensichtlich.
+- Nachdem du Flüge und/oder Hotels gesucht hast, rufe IMMER "showTravelPlan" auf, um dem Nutzer eine Reise-Timeline zu zeigen: chronologisch Hinflug → Hotel → Rückflug (oder nur Hotel bei reiner Hotelsuche). Pro Abschnitt 1-3 Optionen aus den Suchergebnissen. Übernimm Preise und Links EXAKT aus den Tool-Ergebnissen, erfinde nichts.
+- Bei einem Gesamtbudget (z. B. "3000 Euro") rechne grob vor: Flug + Hotel für den Zeitraum, und sag ehrlich, ob es sich ausgeht und wie viel Spielraum bleibt.
+- Wenn die Flugsuche nur Monats-Richtpreise liefert (dateExact=false), weise kurz darauf hin, dass die Preise Richtwerte für den Monat sind.
+- Nenne im Fließtext keine Preise – die stehen in der Timeline. Kurzes Fazit (beste Kombi fürs Budget) ist erwünscht.
 - Antworte auf Deutsch, locker aber kompetent, ohne Floskeln.`;
 
 // Token-Heuristik: Bezeichnet ein Treffer-/Angebotstitel wirklich DASSELBE
@@ -153,6 +164,7 @@ export async function POST(req: Request) {
   ].join("\n");
   const systemPrompt =
     SYSTEM_PROMPT +
+    `\n\nHeutiges Datum: ${new Date().toISOString().slice(0, 10)}` +
     `\n\nVerfügbare Partner-Shops (nur diese werden dem Nutzer verlinkt):\n${shopInfo}` +
     (atOnly
       ? "\nDer Nutzer möchte NUR bei österreichischen Anbietern kaufen – berücksichtige das bei deinen Empfehlungen und erwähne es nicht extra."
@@ -186,6 +198,105 @@ export async function POST(req: Request) {
           "Liest alle Sammelkörbe des Nutzers mit den gemerkten Produkten.",
         inputSchema: z.object({}),
         execute: async () => ({ baskets: await loadBaskets(userId) }),
+      }),
+      searchFlights: tool({
+        description:
+          "Sucht echte Flugangebote (Preise in EUR). IATA-Codes verwenden.",
+        inputSchema: z.object({
+          origin: z.string().length(3).describe("IATA-Code Abflug, z.B. VIE"),
+          destination: z
+            .string()
+            .length(3)
+            .describe("IATA-Code Ziel, z.B. JFK"),
+          departDate: z
+            .string()
+            .describe("Abflugdatum YYYY-MM-DD"),
+          returnDate: z
+            .string()
+            .optional()
+            .describe("Rückflugdatum YYYY-MM-DD, weglassen bei One-Way"),
+        }),
+        execute: async ({ origin, destination, departDate, returnDate }) =>
+          searchFlights(origin, destination, departDate, returnDate, 4),
+      }),
+      searchHotels: tool({
+        description:
+          "Sucht echte Hotelangebote mit Verfügbarkeit und Gesamtpreis für den Aufenthalt (EUR).",
+        inputSchema: z.object({
+          city: z
+            .string()
+            .describe("Stadtname auf ENGLISCH, z.B. Munich, Vienna, New York"),
+          countryCode: z
+            .string()
+            .length(2)
+            .describe("ISO-2-Ländercode, z.B. DE, AT, US"),
+          checkin: z.string().describe("Check-in YYYY-MM-DD"),
+          checkout: z.string().describe("Check-out YYYY-MM-DD"),
+          adults: z.number().int().min(1).max(6).optional().describe("Erwachsene, Standard 2"),
+          minStars: z
+            .number()
+            .int()
+            .min(1)
+            .max(5)
+            .optional()
+            .describe("Mindest-Sterne, z.B. 4"),
+          maxPricePerNight: z
+            .number()
+            .optional()
+            .describe("Maximalpreis pro Nacht in EUR"),
+          needsParking: z.boolean().optional().describe("Parkplatz erforderlich"),
+          needsPets: z.boolean().optional().describe("Haustiere erlaubt erforderlich"),
+        }),
+        execute: async (opts) => ({ hotels: await searchHotels(opts) }),
+      }),
+      showTravelPlan: tool({
+        description:
+          "Zeigt dem Nutzer eine Reise-Timeline mit Flug- und Hotel-Optionen. Nach searchFlights/searchHotels IMMER aufrufen. Daten EXAKT aus den Suchergebnissen übernehmen.",
+        inputSchema: z.object({
+          title: z.string().describe("Kurzer Titel, z.B. 'Wien → New York, 2.–12. Sept.'"),
+          items: z
+            .array(
+              z.object({
+                type: z.enum(["flight", "hotel"]),
+                label: z
+                  .string()
+                  .describe("Abschnitts-Titel, z.B. 'Hinflug Wien → New York' oder 'Hotel in Manhattan'"),
+                date: z.string().describe("Datum/Zeitraum, z.B. '2. Sept.' oder '2.–12. Sept.'"),
+                options: z
+                  .array(
+                    z.object({
+                      name: z
+                        .string()
+                        .describe("z.B. 'Austrian Airlines OS087, Direktflug' oder Hotelname"),
+                      price: z.number().describe("Preis in EUR (Flug: pro Person, Hotel: gesamter Aufenthalt)"),
+                      priceNote: z
+                        .string()
+                        .optional()
+                        .describe("z.B. 'pro Person' oder 'gesamt, 10 Nächte'"),
+                      detail: z
+                        .string()
+                        .optional()
+                        .describe("z.B. '9h 25min, 0 Umstiege' oder '4 Sterne · Parkplatz · Hunde erlaubt'"),
+                      link: z.string().describe("Buchungslink EXAKT aus dem Suchergebnis"),
+                      image: z.string().optional().describe("Foto-URL (nur Hotels)"),
+                      recommended: z
+                        .boolean()
+                        .optional()
+                        .describe("Tschettis Empfehlung in diesem Abschnitt (max. 1)"),
+                    })
+                  )
+                  .min(1)
+                  .max(3),
+              })
+            )
+            .min(1)
+            .max(5),
+          budgetNote: z
+            .string()
+            .optional()
+            .describe("Kurze Budget-Rechnung, z.B. 'Beste Kombi: ca. 2.450 € – 550 € Spielraum'"),
+        }),
+        execute: async (plan) => plan,
       }),
       showProducts: tool({
         description:

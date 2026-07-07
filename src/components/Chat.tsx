@@ -11,6 +11,7 @@ import {
   bestOfferUrl,
   type Product,
 } from "./ProductCard";
+import { TravelTimeline, type TravelPlan } from "./TravelTimeline";
 import { trackClick } from "@/lib/click";
 
 const SUGGESTIONS = [
@@ -194,6 +195,8 @@ export function Chat({
   // Empfehlungen fürs Desktop-Panel einsammeln (mit Titel der Nutzer-Anfrage).
   const productGroups: { id: string; label: string; products: Product[] }[] =
     [];
+  // Reisepläne (Timeline) fürs Desktop-Panel – in Reihenfolge des Verlaufs.
+  const travelGroups: { id: string; plan: TravelPlan }[] = [];
   {
     let lastUserText = "";
     for (const m of messages) {
@@ -220,6 +223,15 @@ export function Chat({
             });
           }
         }
+        if (
+          part.type === "tool-showTravelPlan" &&
+          part.state === "output-available"
+        ) {
+          const plan = part.output as TravelPlan;
+          if (plan?.items?.length) {
+            travelGroups.push({ id: `${m.id}-${i}`, plan });
+          }
+        }
       });
     }
   }
@@ -237,7 +249,25 @@ export function Chat({
           p.state !== "output-error"
       )
   );
-  const showPanel = productGroups.length > 0 || searching;
+  // Reisesuche läuft (Flüge/Hotels/Timeline noch nicht fertig).
+  const travelSearching = messages.some(
+    (m) =>
+      m.role === "assistant" &&
+      m.parts.some(
+        (p) =>
+          (p.type === "tool-searchFlights" ||
+            p.type === "tool-searchHotels" ||
+            p.type === "tool-showTravelPlan") &&
+          "state" in p &&
+          p.state !== "output-available" &&
+          p.state !== "output-error"
+      )
+  );
+  const showPanel =
+    productGroups.length > 0 ||
+    travelGroups.length > 0 ||
+    searching ||
+    travelSearching;
 
   // Panel automatisch zur neuesten Empfehlung scrollen.
   useEffect(() => {
@@ -245,7 +275,7 @@ export function Chat({
       top: panelRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [productGroups.length, searching]);
+  }, [productGroups.length, travelGroups.length, searching, travelSearching]);
 
   const addImages = async (files: File[]) => {
     setImageError(null);
@@ -367,6 +397,71 @@ export function Chat({
                         <Markdown text={part.text} products={msgProducts} />
                       </div>
                     );
+                  }
+                  if (part.type === "tool-showTravelPlan") {
+                    if (part.state === "output-available") {
+                      const plan = part.output as TravelPlan;
+                      if (!plan?.items?.length) return null;
+                      return (
+                        <div key={i}>
+                          {/* Mobil: Timeline direkt im Verlauf */}
+                          <div className="lg:hidden">
+                            <TravelTimeline plan={plan} />
+                          </div>
+                          {/* Desktop: Verweis – Timeline läuft im Panel rechts */}
+                          <button
+                            onClick={() =>
+                              document
+                                .getElementById(`reco-${m.id}-${i}`)
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                })
+                            }
+                            className="hidden lg:inline-flex items-center gap-2 text-sm bg-card border border-cream-dark rounded-full px-3.5 py-1.5 text-ink-soft hover:border-accent hover:text-accent transition-colors"
+                          >
+                            <span aria-hidden>🧳</span>
+                            Reiseplan im Panel
+                            <span aria-hidden>→</span>
+                          </button>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }
+                  if (
+                    part.type === "tool-searchFlights" ||
+                    part.type === "tool-searchHotels"
+                  ) {
+                    if (
+                      "state" in part &&
+                      part.state !== "output-available" &&
+                      part.state !== "output-error"
+                    ) {
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-sm text-ink-soft"
+                        >
+                          <svg
+                            className="animate-spin"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                          >
+                            <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+                          </svg>
+                          {part.type === "tool-searchFlights"
+                            ? "Suche Flüge…"
+                            : "Suche Hotels…"}
+                        </div>
+                      );
+                    }
+                    return null;
                   }
                   if (part.type === "tool-showProducts") {
                     if (part.state === "output-available") {
@@ -593,6 +688,11 @@ export function Chat({
                   </div>
                 )}
                 <ProductCardStack products={g.products} />
+              </div>
+            ))}
+            {travelGroups.map((g) => (
+              <div key={g.id} id={`reco-${g.id}`} className="scroll-mt-3">
+                <TravelTimeline plan={g.plan} />
               </div>
             ))}
             {searching && (
