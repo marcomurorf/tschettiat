@@ -8,8 +8,10 @@ import remarkGfm from "remark-gfm";
 import {
   ProductCardRow,
   ProductCardStack,
+  bestOfferUrl,
   type Product,
 } from "./ProductCard";
+import { trackClick } from "@/lib/click";
 
 const SUGGESTIONS = [
   "Ich suche einen leisen Staubsauger unter 200 €",
@@ -20,8 +22,49 @@ const SUGGESTIONS = [
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-/** Markdown-Antworten des Assistenten hübsch rendern. */
-function Markdown({ text }: { text: string }) {
+/** Sucht zu einem Textausschnitt (z. B. fettem Produktnamen) das passende Produkt.
+ *  Tokenbasiert, damit auch umgestellte Namen matchen
+ *  ("Kijaro Dual Lock Campingstuhl" ↔ "Campingstuhl Kijaro Dual Lock"). */
+function matchProduct(
+  text: string,
+  products: Product[]
+): Product | undefined {
+  const tokenize = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((w) => w.length > 1)
+    );
+  const t = tokenize(text);
+  if (t.size === 0) return undefined;
+  return products.find((p) => {
+    const n = tokenize(p.name);
+    if (n.size === 0) return false;
+    const [small, big] = t.size <= n.size ? [t, n] : [n, t];
+    let hits = 0;
+    for (const w of small) if (big.has(w)) hits++;
+    return hits / small.size >= 0.8;
+  });
+}
+
+/** Kindknoten von React-Markdown zu reinem Text zusammenfassen. */
+function childrenToText(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map(childrenToText).join("");
+  return "";
+}
+
+/** Markdown-Antworten des Assistenten hübsch rendern.
+ *  Fett hervorgehobene Produktnamen werden automatisch mit dem
+ *  besten Shop-Angebot verlinkt. */
+function Markdown({
+  text,
+  products = [],
+}: {
+  text: string;
+  products?: Product[];
+}) {
   return (
     <div className="chat-markdown">
       <ReactMarkdown
@@ -32,11 +75,31 @@ function Markdown({ text }: { text: string }) {
               href={href}
               target="_blank"
               rel="nofollow sponsored noopener"
+              onClick={trackClick}
               className="text-accent underline underline-offset-2 hover:text-accent-dark"
             >
               {children}
             </a>
           ),
+          strong: ({ children }) => {
+            const product = matchProduct(childrenToText(children), products);
+            const url = product ? bestOfferUrl(product) : undefined;
+            if (url) {
+              return (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="nofollow sponsored noopener"
+                  onClick={trackClick}
+                  title={`${product!.name} im Shop öffnen*`}
+                  className="font-semibold text-accent underline underline-offset-2 decoration-accent/40 hover:text-accent-dark hover:decoration-accent transition-colors"
+                >
+                  {children}
+                </a>
+              );
+            }
+            return <strong>{children}</strong>;
+          },
         }}
       >
         {text}
@@ -287,12 +350,21 @@ export function Chat({
               <div className="space-y-3">
                 {m.parts.map((part, i) => {
                   if (part.type === "text" && part.text) {
+                    // Produkte dieser Nachricht, damit Produktnamen im
+                    // Fließtext direkt zum Shop verlinken.
+                    const msgProducts = m.parts.flatMap((p) =>
+                      p.type === "tool-showProducts" &&
+                      p.state === "output-available"
+                        ? ((p.output as { products: Product[] })?.products ??
+                          [])
+                        : []
+                    );
                     return (
                       <div
                         key={i}
                         className="bg-card border border-cream-dark rounded-[var(--radius-bubble)] rounded-bl-md px-4 py-2.5 max-w-[85%]"
                       >
-                        <Markdown text={part.text} />
+                        <Markdown text={part.text} products={msgProducts} />
                       </div>
                     );
                   }

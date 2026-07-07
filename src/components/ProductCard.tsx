@@ -64,6 +64,11 @@ function sortOffers(offers: ProductOffer[]): ProductOffer[] {
   });
 }
 
+/** URL des besten (günstigsten) Angebots – z. B. um Produktnamen im Text zu verlinken. */
+export function bestOfferUrl(product: Product): string | undefined {
+  return sortOffers(product.offers)[0]?.url;
+}
+
 export function ProductCard({
   product,
   variant = "carousel",
@@ -80,6 +85,7 @@ export function ProductCard({
   const [saved, setSaved] = useState(false);
   const [picking, setPicking] = useState(false);
   const [showOffers, setShowOffers] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [newName, setNewName] = useState("");
   const [basketNames, setBasketNames] = useState<string[]>([]);
 
@@ -114,7 +120,7 @@ export function ProductCard({
           : "w-[78vw] max-w-[17rem] sm:w-64 shrink-0 snap-start"
       }`}
     >
-      <div className="h-40 bg-white flex items-center justify-center p-4 relative">
+      <div className="h-28 bg-white flex items-center justify-center p-3 relative">
         {product.badge && (
           <span
             className={`absolute top-2 left-2 max-w-[calc(100%-1rem)] truncate text-[10px] uppercase tracking-wide font-semibold rounded-full px-2 py-0.5 shadow-sm ${badgeStyle(product.badge)}`}
@@ -141,7 +147,7 @@ export function ProductCard({
           </span>
         )}
       </div>
-      <div className="p-4 flex flex-col gap-2 flex-1">
+      <div className="p-3 flex flex-col gap-1.5 flex-1">
         {(product.category || product.brand) && (
           <div className="text-xs uppercase tracking-wide flex items-center gap-1.5 flex-wrap min-w-0">
             {product.category && (
@@ -159,54 +165,82 @@ export function ProductCard({
             )}
           </div>
         )}
-        <h3 className="font-semibold leading-snug">{product.name}</h3>
-        {product.priceHint && (
-          <div className="text-accent font-semibold text-sm">
-            {product.priceHint}
-          </div>
-        )}
-        {typeof product.rating === "number" && (
-          <div className="text-xs text-ink-soft flex items-center gap-1">
-            <span className="text-amber-500">
-              {"★".repeat(Math.round(product.rating))}
-              {"☆".repeat(5 - Math.round(product.rating))}
+        <h3 className="font-semibold text-sm leading-snug">{product.name}</h3>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          {product.priceHint && (
+            <span className="text-accent font-semibold text-sm">
+              {product.priceHint}
             </span>
-            <span>
+          )}
+          {typeof product.rating === "number" && (
+            <span className="text-xs text-ink-soft inline-flex items-center gap-1">
+              <span className="text-amber-500">★</span>
               {product.rating.toLocaleString("de-AT")}
               {product.ratingsTotal
                 ? ` (${product.ratingsTotal.toLocaleString("de-AT")})`
                 : ""}
             </span>
-          </div>
-        )}
-        <ul className="text-sm text-ink-soft space-y-1">
+          )}
+        </div>
+        <ul className="text-xs text-ink-soft space-y-0.5">
           {product.pros.map((p, i) => (
             <li key={i} className="flex gap-1.5">
               <span className="text-emerald-600">✓</span>
               <span>{p}</span>
             </li>
           ))}
-          {product.cons?.map((c, i) => (
-            <li key={`c-${i}`} className="flex gap-1.5">
-              <span className="text-accent">–</span>
-              <span>{c}</span>
-            </li>
-          ))}
         </ul>
-        <p className="text-xs text-ink-soft italic">{product.bestFor}</p>
-        {product.reason && (
-          <div className="text-xs bg-accent-soft/60 border border-accent/15 rounded-lg px-2.5 py-2 leading-relaxed">
-            <span className="font-semibold">Warum Tschetti das empfiehlt:</span>{" "}
-            {product.reason}
+        {(product.cons?.length ||
+          product.reason ||
+          product.reviewSummary ||
+          product.bestFor) && (
+          <div>
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="text-xs text-ink-soft hover:text-accent transition-colors inline-flex items-center gap-1"
+            >
+              {showDetails ? "Weniger Details" : "Mehr Details"}
+              <span
+                className={`transition-transform ${showDetails ? "rotate-180" : ""}`}
+                aria-hidden
+              >
+                ▾
+              </span>
+            </button>
+            {showDetails && (
+              <div className="mt-1.5 space-y-1.5">
+                {product.cons && product.cons.length > 0 && (
+                  <ul className="text-xs text-ink-soft space-y-0.5">
+                    {product.cons.map((c, i) => (
+                      <li key={i} className="flex gap-1.5">
+                        <span className="text-accent">–</span>
+                        <span>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-ink-soft italic">
+                  {product.bestFor}
+                </p>
+                {product.reason && (
+                  <div className="text-xs bg-accent-soft/60 border border-accent/15 rounded-lg px-2.5 py-2 leading-relaxed">
+                    <span className="font-semibold">
+                      Warum Tschetti das empfiehlt:
+                    </span>{" "}
+                    {product.reason}
+                  </div>
+                )}
+                {product.reviewSummary && (
+                  <div className="text-xs text-ink-soft leading-relaxed">
+                    <span className="font-semibold">💬 Nutzer-Stimmen:</span>{" "}
+                    {product.reviewSummary}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
-        {product.reviewSummary && (
-          <div className="text-xs text-ink-soft leading-relaxed">
-            <span className="font-semibold">💬 Nutzer-Stimmen:</span>{" "}
-            {product.reviewSummary}
-          </div>
-        )}
-        <div className="mt-auto pt-2 flex flex-col gap-1.5">
+        <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
           {bestOffer && (
             <a
               href={bestOffer.url}
@@ -214,7 +248,7 @@ export function ProductCard({
               rel="nofollow sponsored noopener"
               onClick={trackClick}
               title={bestOffer.productName}
-              className="flex items-center justify-center gap-1.5 bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2 px-3 transition-colors"
+              className="flex items-center justify-center gap-1.5 bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-1.5 px-3 transition-colors"
             >
               <span className="truncate">Bei {bestOffer.shop}</span>
               {bestOffer.price && (
