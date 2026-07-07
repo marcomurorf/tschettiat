@@ -414,3 +414,189 @@ export async function searchHotels(opts: {
   if (result.length > 0) cacheSet(cacheKey, result);
   return result;
 }
+
+// ---------- Hotel-Buchung (LiteAPI, Sandbox) ----------
+
+export interface FreshOffer {
+  offerId: string;
+  hotelName?: string;
+  roomName?: string;
+  boardName?: string;
+  price: number;
+  currency: string;
+  refundableTag?: string; // RFN = stornierbar, NRFN = nicht stornierbar
+  cancelPolicyText?: string;
+}
+
+interface LiteRateFull {
+  hotelId: string;
+  roomTypes?: Array<{
+    offerId?: string;
+    rates?: Array<{
+      name?: string;
+      boardName?: string;
+      retailRate?: { total?: Array<{ amount?: number; currency?: string }> };
+      cancellationPolicies?: {
+        refundableTag?: string;
+        cancelPolicyInfos?: Array<{ cancelTime?: string; amount?: number }>;
+      };
+    }>;
+  }>;
+}
+
+/**
+ * Holt eine frische, buchbare Offer für ein Hotel (offerIds sind kurzlebig,
+ * deshalb wird beim Checkout immer neu geratet). Liefert die günstigste Offer.
+ */
+export async function getFreshOffer(opts: {
+  hotelId: string;
+  checkin: string;
+  checkout: string;
+  adults?: number;
+}): Promise<FreshOffer | null> {
+  if (!LITEAPI_KEY) return null;
+  const { hotelId, checkin, checkout, adults = 2 } = opts;
+
+  return enqueue(async () => {
+    const ratesRes = (await litePost("/hotels/rates", {
+      hotelIds: [hotelId],
+      checkin,
+      checkout,
+      currency: "EUR",
+      guestNationality: "AT",
+      occupancies: [{ adults }],
+    }).catch(() => null)) as { data?: LiteRateFull[] } | null;
+
+    const hotel = ratesRes?.data?.[0];
+    if (!hotel) return null;
+
+    let best: FreshOffer | null = null;
+    for (const rt of hotel.roomTypes ?? []) {
+      if (!rt.offerId) continue;
+      const rate = rt.rates?.[0];
+      const total = rate?.retailRate?.total?.[0];
+      if (!total?.amount) continue;
+      if (!best || total.amount < best.price) {
+        const cancelInfo = rate?.cancellationPolicies?.cancelPolicyInfos?.[0];
+        best = {
+          offerId: rt.offerId,
+          roomName: rate?.name,
+          boardName: rate?.boardName,
+          price: total.amount,
+          currency: total.currency ?? "EUR",
+          refundableTag: rate?.cancellationPolicies?.refundableTag,
+          cancelPolicyText:
+            rate?.cancellationPolicies?.refundableTag === "RFN" && cancelInfo?.cancelTime
+              ? `Kostenlos stornierbar bis ${cancelInfo.cancelTime.slice(0, 10)}`
+              : rate?.cancellationPolicies?.refundableTag === "NRFN"
+                ? "Nicht stornierbar"
+                : undefined,
+        };
+      }
+    }
+
+    if (best) {
+      // Hotelname für die Anzeige dazuholen
+      const detailsRes = (await liteGet(
+        `/data/hotel?hotelId=${encodeURIComponent(hotelId)}`
+      ).catch(() => null)) as { data?: { name?: string } } | null;
+      best.hotelName = detailsRes?.data?.name;
+    }
+    return best;
+  });
+}
+
+export interface PrebookResult {
+  prebookId: string;
+  price: number;
+  currency: string;
+  checkin?: string;
+  checkout?: string;
+}
+
+/** Fixiert eine Offer für die Buchung (Preis kann sich hier final ändern). */
+export async function prebookHotel(offerId: string): Promise<PrebookResult | null> {
+  if (!LITEAPI_KEY) return null;
+  return enqueue(async () => {
+    const res = (await litePost("/rates/prebook", { offerId, usePaymentSdk: false }).catch(
+      () => null
+    )) as {
+      data?: {
+        prebookId?: string;
+        price?: number;
+        currency?: string;
+        checkin?: string;
+        checkout?: string;
+      };
+    } | null;
+    const d = res?.data;
+    if (!d?.prebookId || typeof d.price !== "number") return null;
+    return {
+      prebookId: d.prebookId,
+      price: d.price,
+      currency: d.currency ?? "EUR",
+      checkin: d.checkin,
+      checkout: d.checkout,
+    };
+  });
+}
+
+export interface BookResult {
+  bookingId: string;
+  status: string;
+  hotelName?: string;
+  price?: number;
+  currency?: string;
+  checkin?: string;
+  checkout?: string;
+}
+
+/**
+ * Bucht ein vorgemerktes Angebot. In der Sandbox simuliert ACC_CREDIT_CARD
+ * eine Buchung ohne echte Zahlung. Book läuft über einen eigenen Host!
+ */
+export async function bookHotel(opts: {
+  prebookId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}): Promise<BookResult | null> {
+  if (!LITEAPI_KEY) return null;
+  const { prebookId, firstName, lastName, email } = opts;
+
+  return enqueue(async () => {
+    const res = (await httpJsonRetry(
+      "POST",
+      "https://book.liteapi.travel/v3.0/rates/book",
+      { "X-API-Key": LITEAPI_KEY! },
+      {
+        prebookId,
+        holder: { firstName, lastName, email },
+        guests: [{ occupancyNumber: 1, firstName, lastName, email }],
+        payment: { method: "ACC_CREDIT_CARD" },
+        clientReference: `tschetti-${prebookId}`,
+      }
+    ).catch(() => null)) as {
+      data?: {
+        bookingId?: string;
+        status?: string;
+        hotel?: { name?: string };
+        price?: number;
+        currency?: string;
+        checkin?: string;
+        checkout?: string;
+      };
+    } | null;
+    const d = res?.data;
+    if (!d?.bookingId) return null;
+    return {
+      bookingId: d.bookingId,
+      status: d.status ?? "UNKNOWN",
+      hotelName: d.hotel?.name,
+      price: d.price,
+      currency: d.currency,
+      checkin: d.checkin,
+      checkout: d.checkout,
+    };
+  });
+}

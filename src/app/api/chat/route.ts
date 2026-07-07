@@ -55,6 +55,7 @@ Du hilfst auch bei Reiseplanung: Flüge, Hotels und komplette Trips.
 - Für Hotelsuchen rufe "searchHotels" auf (Stadt + ISO-Ländercode, z. B. Munich/DE, New York/US – Städtenamen auf ENGLISCH). Übergib Wünsche wie Sterne, Parkplatz, Haustiere und Maximalpreis pro Nacht als Parameter.
 - Fehlen Reisedaten (Datum, Personenzahl), frage kurz nach – außer sie sind offensichtlich.
 - Nachdem du Flüge und/oder Hotels gesucht hast, rufe IMMER "showTravelPlan" auf, um dem Nutzer eine Reise-Timeline zu zeigen: chronologisch Hinflug → Hotel → Rückflug (oder nur Hotel bei reiner Hotelsuche). Pro Abschnitt 1-3 Optionen aus den Suchergebnissen. Übernimm Preise und Links EXAKT aus den Tool-Ergebnissen, erfinde nichts.
+- Bei Hotel-Optionen in "showTravelPlan" übergib IMMER auch hotelId (aus dem searchHotels-Ergebnis) sowie checkin, checkout und adults der Suche – dann kann der Nutzer das Hotel direkt bei Tschetti buchen.
 - Bei einem Gesamtbudget (z. B. "3000 Euro") rechne grob vor: Flug + Hotel für den Zeitraum, und sag ehrlich, ob es sich ausgeht und wie viel Spielraum bleibt.
 - Wenn die Flugsuche nur Monats-Richtpreise liefert (dateExact=false), weise kurz darauf hin, dass die Preise Richtwerte für den Monat sind.
 - Nenne im Fließtext keine Preise – die stehen in der Timeline. Kurzes Fazit (beste Kombi fürs Budget) ist erwünscht.
@@ -283,6 +284,23 @@ export async function POST(req: Request) {
                         .boolean()
                         .optional()
                         .describe("Tschettis Empfehlung in diesem Abschnitt (max. 1)"),
+                      hotelId: z
+                        .string()
+                        .optional()
+                        .describe("hotelId EXAKT aus dem searchHotels-Ergebnis (nur Hotels, macht die Option direkt buchbar)"),
+                      checkin: z
+                        .string()
+                        .optional()
+                        .describe("Check-in YYYY-MM-DD der Hotelsuche (nur Hotels)"),
+                      checkout: z
+                        .string()
+                        .optional()
+                        .describe("Check-out YYYY-MM-DD der Hotelsuche (nur Hotels)"),
+                      adults: z
+                        .number()
+                        .int()
+                        .optional()
+                        .describe("Anzahl Erwachsene der Hotelsuche (nur Hotels)"),
                     })
                   )
                   .min(1)
