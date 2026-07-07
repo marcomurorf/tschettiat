@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import type { UIMessage, FileUIPart } from "ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ProductCardRow, type Product } from "./ProductCard";
+import {
+  ProductCardRow,
+  ProductCardStack,
+  type Product,
+} from "./ProductCard";
 
 const SUGGESTIONS = [
   "Ich suche einen leisen Staubsauger unter 200 €",
@@ -116,12 +120,69 @@ export function Chat({
     });
   };
   const bottomRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Empfehlungen fürs Desktop-Panel einsammeln (mit Titel der Nutzer-Anfrage).
+  const productGroups: { id: string; label: string; products: Product[] }[] =
+    [];
+  {
+    let lastUserText = "";
+    for (const m of messages) {
+      if (m.role === "user") {
+        lastUserText = m.parts
+          .filter((p) => p.type === "text")
+          .map((p) => (p.type === "text" ? p.text : ""))
+          .join("")
+          .trim();
+        continue;
+      }
+      if (m.role !== "assistant") continue;
+      m.parts.forEach((part, i) => {
+        if (
+          part.type === "tool-showProducts" &&
+          part.state === "output-available"
+        ) {
+          const out = part.output as { products: Product[] };
+          if (out?.products?.length) {
+            productGroups.push({
+              id: `${m.id}-${i}`,
+              label: lastUserText,
+              products: out.products,
+            });
+          }
+        }
+      });
+    }
+  }
+  const totalProducts = productGroups.reduce(
+    (n, g) => n + g.products.length,
+    0
+  );
+  const searching = messages.some(
+    (m) =>
+      m.role === "assistant" &&
+      m.parts.some(
+        (p) =>
+          p.type === "tool-showProducts" &&
+          p.state !== "output-available" &&
+          p.state !== "output-error"
+      )
+  );
+  const showPanel = productGroups.length > 0 || searching;
+
+  // Panel automatisch zur neuesten Empfehlung scrollen.
+  useEffect(() => {
+    panelRef.current?.scrollTo({
+      top: panelRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [productGroups.length, searching]);
 
   const addImages = async (files: File[]) => {
     setImageError(null);
@@ -160,13 +221,15 @@ export function Chat({
 
   return (
     <div
-      className="flex flex-col flex-1 max-w-3xl w-full mx-auto px-4"
+      className="flex flex-1 min-h-0 w-full"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
         void addImages(Array.from(e.dataTransfer.files));
       }}
     >
+      {/* Chat-Spalte */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 max-w-3xl mx-auto px-4">
       {/* Verlauf */}
       <div className="flex-1 overflow-y-auto chat-scroll py-4 sm:py-6 space-y-5 overscroll-contain">
         {messages.length === 0 && (
@@ -236,11 +299,60 @@ export function Chat({
                   if (part.type === "tool-showProducts") {
                     if (part.state === "output-available") {
                       const out = part.output as { products: Product[] };
-                      return <ProductCardRow key={i} products={out.products} />;
+                      if (!out?.products?.length) return null;
+                      return (
+                        <div key={i}>
+                          {/* Mobil: Karten-Karussell direkt im Verlauf */}
+                          <div className="lg:hidden">
+                            <ProductCardRow products={out.products} />
+                          </div>
+                          {/* Desktop: dezenter Verweis – Karten laufen im Panel rechts */}
+                          <button
+                            onClick={() =>
+                              document
+                                .getElementById(`reco-${m.id}-${i}`)
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                })
+                            }
+                            className="hidden lg:inline-flex items-center gap-2 text-sm bg-card border border-cream-dark rounded-full px-3.5 py-1.5 text-ink-soft hover:border-accent hover:text-accent transition-colors"
+                          >
+                            <span aria-hidden>🛒</span>
+                            {out.products.length}{" "}
+                            {out.products.length === 1
+                              ? "Empfehlung"
+                              : "Empfehlungen"}{" "}
+                            im Panel
+                            <span aria-hidden>→</span>
+                          </button>
+                        </div>
+                      );
                     }
                     if (part.state === "output-error") return null;
-                    // Suche läuft noch: Skeleton-Karten anzeigen
-                    return <ProductSearchSkeleton key={i} />;
+                    // Suche läuft noch: mobil Skeleton, Desktop läuft im Panel
+                    return (
+                      <div key={i}>
+                        <div className="lg:hidden">
+                          <ProductSearchSkeleton />
+                        </div>
+                        <div className="hidden lg:flex items-center gap-2 text-sm text-ink-soft">
+                          <svg
+                            className="animate-spin"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                          >
+                            <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+                          </svg>
+                          Suche passende Produkte…
+                        </div>
+                      </div>
+                    );
                   }
                   return null;
                 })}
@@ -382,6 +494,52 @@ export function Chat({
           </button>
         </div>
       </form>
+      </div>
+
+      {/* Desktop-Empfehlungspanel: Karten laufen rechts mit, der Chat bleibt frei */}
+      {showPanel && (
+        <aside className="hidden lg:flex flex-col w-[21rem] xl:w-[23rem] shrink-0 border-l border-cream-dark bg-card/40 min-h-0">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-cream-dark shrink-0">
+            <span aria-hidden>🛒</span>
+            <span className="font-semibold text-sm">Empfehlungen</span>
+            {totalProducts > 0 && (
+              <span className="text-xs text-ink-soft">({totalProducts})</span>
+            )}
+          </div>
+          <div
+            ref={panelRef}
+            className="flex-1 overflow-y-auto chat-scroll p-3 space-y-5 overscroll-contain"
+          >
+            {productGroups.map((g) => (
+              <div key={g.id} id={`reco-${g.id}`} className="scroll-mt-3">
+                {g.label && (
+                  <div
+                    className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft mb-2 px-1 truncate"
+                    title={g.label}
+                  >
+                    {g.label}
+                  </div>
+                )}
+                <ProductCardStack products={g.products} />
+              </div>
+            ))}
+            {searching && (
+              <div className="animate-pulse bg-card border border-cream-dark rounded-2xl p-4 space-y-3">
+                <div className="bg-cream-dark/60 rounded-lg h-32 w-full" />
+                <div className="bg-cream-dark/60 rounded h-3.5 w-4/5" />
+                <div className="bg-cream-dark/60 rounded h-3 w-3/5" />
+                <div className="bg-cream-dark/60 rounded h-3 w-2/5" />
+              </div>
+            )}
+            {totalProducts > 0 && (
+              <p className="text-[11px] text-ink-soft px-1">
+                * Affiliate-Links: Bei einem Kauf erhalten wir eine Provision –
+                der Preis ändert sich für dich nicht.
+              </p>
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

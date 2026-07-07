@@ -64,7 +64,14 @@ function sortOffers(offers: ProductOffer[]): ProductOffer[] {
   });
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  variant = "carousel",
+}: {
+  product: Product;
+  /** carousel: feste Breite fürs horizontale Scrollen · stack: volle Breite (Desktop-Panel) */
+  variant?: "carousel" | "stack";
+}) {
   const offers = sortOffers(product.offers);
   const bestOffer = offers[0];
   const moreOffers = offers.slice(1);
@@ -100,20 +107,19 @@ export function ProductCard({ product }: { product: Product }) {
   const showImage = image && !imgFailed;
 
   return (
-    <div className="bg-card rounded-2xl border border-cream-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col w-[78vw] max-w-[17rem] sm:w-64 shrink-0 snap-start">
+    <div
+      className={`bg-card rounded-2xl border border-cream-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col ${
+        variant === "stack"
+          ? "w-full"
+          : "w-[78vw] max-w-[17rem] sm:w-64 shrink-0 snap-start"
+      }`}
+    >
       <div className="h-40 bg-white flex items-center justify-center p-4 relative">
         {product.badge && (
           <span
-            className={`absolute top-2 left-2 text-[10px] uppercase tracking-wide font-semibold rounded-full px-2 py-0.5 shadow-sm ${badgeStyle(product.badge)}`}
+            className={`absolute top-2 left-2 max-w-[calc(100%-1rem)] truncate text-[10px] uppercase tracking-wide font-semibold rounded-full px-2 py-0.5 shadow-sm ${badgeStyle(product.badge)}`}
           >
             {product.badge}
-          </span>
-        )}
-        {product.category && (
-          <span
-            className={`absolute ${product.badge ? "top-2 right-2" : "top-2 left-2"} text-[10px] uppercase tracking-wide bg-accent-soft text-accent-dark font-semibold rounded-full px-2 py-0.5`}
-          >
-            {product.category}
           </span>
         )}
         {showImage ? (
@@ -136,9 +142,21 @@ export function ProductCard({ product }: { product: Product }) {
         )}
       </div>
       <div className="p-4 flex flex-col gap-2 flex-1">
-        {product.brand && (
-          <div className="text-xs uppercase tracking-wide text-ink-soft">
-            {product.brand}
+        {(product.category || product.brand) && (
+          <div className="text-xs uppercase tracking-wide flex items-center gap-1.5 flex-wrap min-w-0">
+            {product.category && (
+              <span className="text-accent-dark font-semibold">
+                {product.category}
+              </span>
+            )}
+            {product.category && product.brand && (
+              <span className="text-ink-soft/40" aria-hidden>
+                ·
+              </span>
+            )}
+            {product.brand && (
+              <span className="text-ink-soft">{product.brand}</span>
+            )}
           </div>
         )}
         <h3 className="font-semibold leading-snug">{product.name}</h3>
@@ -318,6 +336,17 @@ export function ProductCardRow({ products }: { products: Product[] }) {
         * Affiliate-Links: Bei einem Kauf erhalten wir eine Provision – der
         Preis ändert sich für dich nicht.
       </p>
+    </div>
+  );
+}
+
+/** Vertikal gestapelte Karten fürs Desktop-Empfehlungspanel. */
+export function ProductCardStack({ products }: { products: Product[] }) {
+  return (
+    <div className="space-y-3">
+      {products.map((p, i) => (
+        <ProductCard key={i} product={p} variant="stack" />
+      ))}
     </div>
   );
 }

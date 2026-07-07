@@ -10,7 +10,7 @@ export default async function Home() {
   const loggedIn = Boolean(session?.user) || devBypass;
 
   return (
-    <div className="flex flex-col flex-1 h-dvh">
+    <div className="flex flex-col h-dvh">
       <header className="flex items-center justify-between px-5 py-3 border-b border-cream-dark bg-cream/80 backdrop-blur sticky top-0 z-10">
         <Image
           src="/logo.png"
