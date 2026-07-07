@@ -1,5 +1,7 @@
 import { auth } from "@/auth";
 import { ChatShell } from "@/components/ChatShell";
+import { Credits } from "@/components/Credits";
+import { Basket } from "@/components/Basket";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -24,30 +26,31 @@ export default async function Home() {
           className="h-11 sm:h-13 w-auto"
         />
         {loggedIn ? (
-          <Link
-            href="/konto"
-            className="flex items-center gap-2 text-sm text-ink-soft hover:text-ink transition-colors"
-            title="Mein Konto"
-          >
-            <span className="hidden sm:inline">
-              {name ?? session?.user?.email ?? "Konto"}
-            </span>
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={image}
-                alt=""
-                width={32}
-                height={32}
-                referrerPolicy="no-referrer"
-                className="w-8 h-8 rounded-full border border-cream-dark object-cover"
-              />
-            ) : (
-              <span className="w-8 h-8 rounded-full bg-accent-soft grid place-items-center text-sm font-medium">
-                {(name ?? session?.user?.email ?? "K").charAt(0).toUpperCase()}
-              </span>
-            )}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Credits />
+            <Basket />
+            <Link
+              href="/konto"
+              className="flex items-center gap-2 text-sm text-ink-soft hover:text-ink transition-colors"
+              title="Mein Konto"
+            >
+              {image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={image}
+                  alt=""
+                  width={32}
+                  height={32}
+                  referrerPolicy="no-referrer"
+                  className="w-8 h-8 rounded-full border border-cream-dark object-cover"
+                />
+              ) : (
+                <span className="w-8 h-8 rounded-full bg-accent-soft grid place-items-center text-sm font-medium">
+                  {(name ?? session?.user?.email ?? "K").charAt(0).toUpperCase()}
+                </span>
+              )}
+            </Link>
+          </div>
         ) : (
           <Link
             href="/login"

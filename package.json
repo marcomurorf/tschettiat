@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/azure": "^4.0.7",
     "@ai-sdk/google": "^4.0.8",
+    "@ai-sdk/openai": "^4.0.8",
     "@ai-sdk/react": "^4.0.16",
     "@auth/unstorage-adapter": "^2.11.2",
     "ai": "^7.0.15",

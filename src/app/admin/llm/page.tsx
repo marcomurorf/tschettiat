@@ -12,6 +12,16 @@ const MODELS: Record<string, string[]> = {
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
   ],
+  openai: [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+  ],
 };
 
 export default function LlmPage() {
@@ -40,7 +50,10 @@ export default function LlmPage() {
             <select
               value={settings.llm.provider}
               onChange={(e) => {
-                const provider = e.target.value as "azure" | "google";
+                const provider = e.target.value as
+                  | "azure"
+                  | "google"
+                  | "openai";
                 setSettings({
                   ...settings,
                   llm: { provider, model: MODELS[provider][0] },
@@ -50,6 +63,7 @@ export default function LlmPage() {
             >
               <option value="azure">Azure OpenAI</option>
               <option value="google">Google Gemini</option>
+              <option value="openai">OpenAI</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -115,7 +129,7 @@ export default function LlmPage() {
         </div>
         <p className="text-xs text-ink-soft">
           API-Keys liegen in der .env auf dem Server (AZURE_OPENAI_*,
-          GOOGLE_GENERATIVE_AI_API_KEY).
+          GOOGLE_GENERATIVE_AI_API_KEY, OPENAI_API_KEY).
         </p>
       </section>
 

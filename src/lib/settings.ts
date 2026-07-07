@@ -29,8 +29,8 @@ export interface CreditPackage {
 
 export interface Settings {
   llm: {
-    provider: "azure" | "google";
-    model: string; // Azure: Deployment-Name, Google: Modell-ID
+    provider: "azure" | "google" | "openai";
+    model: string; // Azure: Deployment-Name, Google/OpenAI: Modell-ID
     costPerMTokens?: number; // veraltet: Pauschalsatz €/1 Mio. Token (Fallback)
     costInPerMTokens?: number; // Kosten pro 1 Mio. Input-Token (für Admin-Statistik)
     costOutPerMTokens?: number; // Kosten pro 1 Mio. Output-Token

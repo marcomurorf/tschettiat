@@ -4,8 +4,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { UIMessage } from "ai";
 import { Chat } from "./Chat";
-import { Basket } from "./Basket";
-import { Credits } from "./Credits";
 
 interface ChatMeta {
   id: string;
@@ -176,23 +174,17 @@ export function ChatShell({ firstName }: { firstName?: string | null }) {
         />
       )}
 
-      {/* Hauptbereich: Toolbar + aktiver Chat */}
+      {/* Hauptbereich: mobile Toolbar (Verläufe) + aktiver Chat */}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        {/* Toolbar: Verläufe (mobil) links, Sammelkorb rechts */}
-        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b border-cream-dark bg-cream/80 backdrop-blur">
+        <div className="md:hidden flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-cream-dark bg-cream/80 backdrop-blur">
           <button
             onClick={() => setSidebarOpen((o) => !o)}
-            className="md:hidden flex items-center gap-1.5 text-sm text-ink-soft bg-card border border-cream-dark rounded-full px-3 py-1.5 hover:border-accent hover:text-accent transition-colors"
+            className="flex items-center gap-1.5 text-sm text-ink-soft bg-card border border-cream-dark rounded-full px-3 py-1.5 hover:border-accent hover:text-accent transition-colors"
             aria-label="Chatverläufe öffnen"
           >
             <span aria-hidden>☰</span>
             Verläufe
           </button>
-          <span className="hidden md:block" />
-          <div className="flex items-center gap-2">
-            <Credits />
-            <Basket />
-          </div>
         </div>
 
         {/* Aktiver Chat – key erzwingt Remount beim Wechsel */}

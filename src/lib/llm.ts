@@ -1,6 +1,7 @@
 // LLM-Auswahl anhand der Admin-Einstellungen (Vercel AI SDK).
 import { createAzure } from "@ai-sdk/azure";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 import type { Settings } from "./settings";
 
@@ -11,6 +12,12 @@ export function getModel(settings: Settings): LanguageModel {
       apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     });
     return google(model);
+  }
+  if (provider === "openai") {
+    const openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    return openai(model);
   }
   // Entweder kompletter Endpoint (z.B. https://xyz.cognitiveservices.azure.com)
   // oder nur der Ressourcen-Name.
