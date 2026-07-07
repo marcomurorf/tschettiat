@@ -20,6 +20,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Google verifiziert E-Mail-Adressen → sicher, ein bestehendes
+      // Magic-Link-Konto mit demselben Google-Konto zu verknüpfen.
+      // Ohne das: OAuthAccountNotLinked, wenn man sich zuerst per
+      // E-Mail und später per Google anmeldet.
+      allowDangerousEmailAccountLinking: true,
     })
   );
 }
