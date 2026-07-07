@@ -175,6 +175,27 @@ export default function LlmPage() {
             />
           </label>
         </div>
+        <label className="flex flex-col gap-1 text-sm">
+          Vom Tageslimit ausgenommen (E-Mails, kommagetrennt)
+          <input
+            type="text"
+            placeholder="z. B. mursteiner@gmail.com, chef@example.com"
+            value={(settings.limits?.unlimitedUsers ?? []).join(", ")}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                limits: {
+                  ...settings.limits,
+                  unlimitedUsers: e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                },
+              })
+            }
+            className="border border-cream-dark rounded-lg px-3 py-2 bg-white"
+          />
+        </label>
         <p className="text-xs text-ink-soft">
           Klicks auf Partnerlinks erhöhen das Tagesbudget still im Hintergrund.
           60.000 Token/Tag ≈ 40-60 Anfragen.

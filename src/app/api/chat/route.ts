@@ -172,8 +172,12 @@ export async function POST(req: Request) {
       : "");
 
   // Tokenbudget pro Tag prüfen, bevor das LLM angeworfen wird.
+  // Nutzer auf der unlimitedUsers-Liste sind vom Limit ausgenommen.
+  const unlimited = (settings.limits?.unlimitedUsers ?? []).some(
+    (u) => u.toLowerCase() === userId.toLowerCase()
+  );
   const tokenLimit = settings.limits?.tokensPerDay ?? 60000;
-  if (await isOverLimit(userId, tokenLimit)) {
+  if (!unlimited && (await isOverLimit(userId, tokenLimit))) {
     return new Response(
       "Tageslimit erreicht – morgen geht's weiter!",
       { status: 429 }

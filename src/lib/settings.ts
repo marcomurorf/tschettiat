@@ -35,6 +35,7 @@ export interface Settings {
     tokensPerDay: number; // Tokenbudget pro User und Tag
     clickBonusTokens: number; // Extra-Token je Klick auf einen Partnerlink
     clickBonusMaxPerDay: number; // max. belohnte Klicks pro Tag
+    unlimitedUsers?: string[]; // E-Mail-Adressen ohne Tageslimit
   };
   shops: ShopConfig[];
 }

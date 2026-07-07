@@ -15,6 +15,10 @@ const settingsSchema = z.object({
       tokensPerDay: z.number().int().min(1000).max(10_000_000),
       clickBonusTokens: z.number().int().min(0).max(1_000_000),
       clickBonusMaxPerDay: z.number().int().min(0).max(1000),
+      unlimitedUsers: z
+        .array(z.string().email().max(200))
+        .max(100)
+        .optional(),
     })
     .default({
       tokensPerDay: 60000,
